@@ -26,7 +26,7 @@ src/
 
 ---
 
-# 🟦 **1. Person 1 — Core Files + SJF Template**
+# **1. Person 1 — Core Files + SJF Template**
 
 ---
 
@@ -336,9 +336,6 @@ public class InputParser {
     }
 }
 ```
-
----
-
 
 ---
 
