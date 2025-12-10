@@ -9,13 +9,13 @@ Everything is organized so integration by Person 5 will be smooth.
 ```
 src/
  ├── core/
- │    ├── Process.java
- │    ├── SchedulerBase.java
- │    ├── ExecutionSlice.java
+ │    ├── Process.java ✓
+ │    ├── SchedulerBase.java ✓
+ │    ├── ExecutionSlice.java ✓
  │    ├── ResultFormatter.java
  │    └── GanttChartPrinter.java
  ├── schedulers/
- │    ├── SJFPreemptiveScheduler.java
+ │    ├── SJFPreemptiveScheduler.java ✓
  │    ├── RoundRobinScheduler.java
  │    ├── PriorityPreemptiveScheduler.java
  │    └── AGScheduler.java
@@ -36,25 +36,49 @@ src/
 package core;
 
 public class Process {
-    public String name;
-    public int arrivalTime;
-    public int burstTime;
-    public int remainingTime;
-    public int priority;
-    public int quantum;
+    private final String name;
+    private final int arrivalTime;
+    private final int burstTime;
+    private int remainingTime;
+    private int priority;  // Lower number = higher priority (for Priority/AG schedulers)
+    private int quantum;   // Per-process quantum (for AG scheduler)
 
-    // Metrics
-    public int waitingTime = 0;
-    public int turnaroundTime = 0;
-    public int completionTime = 0;
-    
-    public Process(String name, int arrival, int burst, int priority, int quantum) {
+    // Metrics (computed during scheduling)
+    private int completionTime = -1;
+    private int waitingTime = 0;
+    private int turnaroundTime = 0;
+
+    public Process(String name, int arrivalTime, int burstTime, int priority, int quantum) {
         this.name = name;
-        this.arrivalTime = arrival;
-        this.burstTime = burst;
-        this.remainingTime = burst;
+        this.arrivalTime = arrivalTime;
+        this.burstTime = burstTime;
+        this.remainingTime = burstTime;
         this.priority = priority;
         this.quantum = quantum;
+    }
+
+    // Getters
+    public String getName() { return name; }
+    public int getArrivalTime() { return arrivalTime; }
+    public int getBurstTime() { return burstTime; }
+    public int getRemainingTime() { return remainingTime; }
+    public int getPriority() { return priority; }
+    public int getQuantum() { return quantum; }
+    public int getCompletionTime() { return completionTime; }
+    public int getWaitingTime() { return waitingTime; }
+    public int getTurnaroundTime() { return turnaroundTime; }
+
+    // Setters (for mutable fields during scheduling)
+    public void decreaseRemaining(int amount) { remainingTime -= amount; }
+    public void setPriority(int priority) { this.priority = priority; }
+    public void setQuantum(int quantum) { this.quantum = quantum; }
+    public void setCompletionTime(int completionTime) { this.completionTime = completionTime; }
+    public void setWaitingTime(int waitingTime) { this.waitingTime = waitingTime; }
+    public void setTurnaroundTime(int turnaroundTime) { this.turnaroundTime = turnaroundTime; }
+
+    // Copy method (to avoid modifying original list in schedulers)
+    public Process copy() {
+        return new Process(name, arrivalTime, burstTime, priority, quantum);
     }
 }
 ```
@@ -66,24 +90,33 @@ public class Process {
 ```java
 package core;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public abstract class SchedulerBase {
 
-    // Will store execution segments → for Gantt chart
-    protected List<ExecutionSlice> slices;
+    protected List<ExecutionSlice> slices = new ArrayList<>();
 
-    public abstract void run(List<Process> processes, int contextSwitch);
+    // All schedulers must implement this; rrQuantum is for RR, ignored by others
+    public abstract void run(List<Process> processes, int contextSwitchTime, int rrQuantum);
 
-    // Helper for computing metrics AFTER scheduling finishes
-    protected void computeMetrics(List<Process> processes) {
-        for (Process p : processes) {
-            p.turnaroundTime = p.completionTime - p.arrivalTime;
-            p.waitingTime = p.turnaroundTime - p.burstTime;
+    // Helper to add a Gantt slice (process or "CS" or "IDLE")
+    protected void addSlice(String name, int start, int end) {
+        if (start < end) {
+            slices.add(new ExecutionSlice(name, start, end));
         }
     }
 
-    // Getter for integration
+    // Compute metrics after scheduling (uses completionTime set during run)
+    protected void computeMetrics(List<Process> processes) {
+        for (Process p : processes) {
+            if (p.getCompletionTime() != -1) {
+                p.setTurnaroundTime(p.getCompletionTime() - p.getArrivalTime());
+                p.setWaitingTime(p.getTurnaroundTime() - p.getBurstTime());
+            }
+        }
+    }
+
     public List<ExecutionSlice> getSlices() {
         return slices;
     }
@@ -98,12 +131,12 @@ public abstract class SchedulerBase {
 package core;
 
 public class ExecutionSlice {
-    public String processName;
-    public int start;
-    public int end;
+    public final String processName;  // Process name, "CS" for context switch, or "IDLE"
+    public final int start;
+    public final int end;
 
-    public ExecutionSlice(String name, int start, int end) {
-        this.processName = name;
+    public ExecutionSlice(String processName, int start, int end) {
+        this.processName = processName;
         this.start = start;
         this.end = end;
     }
@@ -181,27 +214,113 @@ public class GanttChartPrinter {
 ```java
 package schedulers;
 
-import core.*;
+import core.Process;
+import core.SchedulerBase;
+import core.ExecutionSlice;
+
 import java.util.*;
 
 public class SJFPreemptiveScheduler extends SchedulerBase {
 
+    // Comparator for ready queue: shortest remaining time, tie-break by arrival time
+    private static class ProcessComparator implements Comparator<Process> {
+        @Override
+        public int compare(Process p1, Process p2) {
+            if (p1.getRemainingTime() != p2.getRemainingTime()) {
+                return Integer.compare(p1.getRemainingTime(), p2.getRemainingTime());
+            }
+            return Integer.compare(p1.getArrivalTime(), p2.getArrivalTime());
+        }
+    }
+
     @Override
-    public void run(List<Process> processes, int contextSwitch) {
-        slices = new ArrayList<>();
+    public void run(List<Process> processes, int contextSwitchTime, int rrQuantum) {
+        // Make a working copy to avoid modifying originals
+        List<Process> workingProcesses = new ArrayList<>();
+        for (Process p : processes) {
+            workingProcesses.add(p.copy());
+        }
 
-        // TODO: Implement preemptive SJF using a priority queue
-        // Priority: shortest remaining time first
+        // Sort by arrival for efficient addition
+        List<Process> arrivalOrder = new ArrayList<>(workingProcesses);
+        arrivalOrder.sort(Comparator.comparingInt(Process::getArrivalTime));
 
-        // Steps:
-        // 1. Use currentTime to track progress
-        // 2. Add processes as they arrive
-        // 3. Preempt if new process has smaller remaining time
-        // 4. Record each execution slice
-        // 5. Add context switch time after each preemption
-        // 6. Set completion times
+        PriorityQueue<Process> readyQueue = new PriorityQueue<>(new ProcessComparator());
+        Set<Process> pending = new HashSet<>(workingProcesses);  // Track unfinished processes
 
-        computeMetrics(processes);
+        int currentTime = 0;
+        int arrivalIndex = 0;
+        Process currentProcess = null;
+        boolean isFirstSwitch = true;
+
+        while (!pending.isEmpty()) {
+            // Add all processes that have arrived by currentTime
+            while (arrivalIndex < arrivalOrder.size() && arrivalOrder.get(arrivalIndex).getArrivalTime() <= currentTime) {
+                readyQueue.add(arrivalOrder.get(arrivalIndex));
+                arrivalIndex++;
+            }
+
+            // If ready queue is empty but more processes will arrive, idle until next arrival
+            if (readyQueue.isEmpty() && arrivalIndex < arrivalOrder.size()) {
+                int startIdle = currentTime;
+                currentTime = arrivalOrder.get(arrivalIndex).getArrivalTime();
+                addSlice("IDLE", startIdle, currentTime);
+                continue;
+            } else if (readyQueue.isEmpty()) {
+                break;  // All done
+            }
+
+            // Check for preemption: if a better (shorter remaining) process is ready
+            Process nextBest = readyQueue.peek();
+            if (currentProcess != null && nextBest.getRemainingTime() < currentProcess.getRemainingTime()) {
+                // Preempt: put current back in queue
+                readyQueue.add(currentProcess);
+                currentProcess = null;
+            }
+
+            // If no current process, select the next best and handle context switch
+            if (currentProcess == null) {
+                currentProcess = readyQueue.poll();
+
+                // Add context switch time if not the first execution and switching
+                if (!isFirstSwitch) {
+                    int startCS = currentTime;
+                    currentTime += contextSwitchTime;
+                    addSlice("CS", startCS, currentTime);
+
+                    // Add any processes that arrived during context switch
+                    while (arrivalIndex < arrivalOrder.size() && arrivalOrder.get(arrivalIndex).getArrivalTime() <= currentTime) {
+                        readyQueue.add(arrivalOrder.get(arrivalIndex));
+                        arrivalIndex++;
+                    }
+                }
+                isFirstSwitch = false;
+            }
+
+            // Determine how long to execute: until next arrival or process finishes
+            int nextEventTime = (arrivalIndex < arrivalOrder.size()) ? arrivalOrder.get(arrivalIndex).getArrivalTime() : Integer.MAX_VALUE;
+            int executeAmount = Math.min(currentProcess.getRemainingTime(), nextEventTime - currentTime);
+
+            if (executeAmount <= 0) {
+                continue;  // No execution possible, loop to handle arrivals
+            }
+
+            // Execute and record slice
+            int start = currentTime;
+            currentTime += executeAmount;
+            currentProcess.decreaseRemaining(executeAmount);
+            addSlice(currentProcess.getName(), start, currentTime);
+
+            // If process finishes
+            if (currentProcess.getRemainingTime() == 0) {
+                currentProcess.setCompletionTime(currentTime);
+                pending.remove(currentProcess);
+                currentProcess = null;
+            }
+        }
+
+        // Compute final metrics (waiting and turnaround)
+        computeMetrics(workingProcesses);
     }
 }
 ```
