@@ -390,111 +390,104 @@ package schedulers;
 
 import core.Process;
 import core.SchedulerBase;
-import core.ExecutionSlice;
 
 import java.util.*;
 
 public class SJFPreemptiveScheduler extends SchedulerBase {
 
-    // Comparator for ready queue: shortest remaining time, tie-break by arrival time
     private static class ProcessComparator implements Comparator<Process> {
         @Override
         public int compare(Process p1, Process p2) {
-            if (p1.getRemainingTime() != p2.getRemainingTime()) {
-                return Integer.compare(p1.getRemainingTime(), p2.getRemainingTime());
-            }
-            return Integer.compare(p1.getArrivalTime(), p2.getArrivalTime());
+            int cmp = Integer.compare(p1.getRemainingTime(), p2.getRemainingTime());
+            return cmp != 0 ? cmp : Integer.compare(p1.getArrivalTime(), p2.getArrivalTime());
         }
     }
 
     @Override
     public void run(List<Process> processes, int contextSwitchTime, int rrQuantum) {
-        // Make a working copy to avoid modifying originals
-        List<Process> workingProcesses = new ArrayList<>();
+        List<Process> working = new ArrayList<>();
         for (Process p : processes) {
-            workingProcesses.add(p.copy());
+            working.add(p.copy());
         }
 
-        // Sort by arrival for efficient addition
-        List<Process> arrivalOrder = new ArrayList<>(workingProcesses);
-        arrivalOrder.sort(Comparator.comparingInt(Process::getArrivalTime));
+        List<Process> arrivals = new ArrayList<>(working);
+        arrivals.sort(Comparator.comparingInt(Process::getArrivalTime));
 
-        PriorityQueue<Process> readyQueue = new PriorityQueue<>(new ProcessComparator());
-        Set<Process> pending = new HashSet<>(workingProcesses);  // Track unfinished processes
+        PriorityQueue<Process> ready = new PriorityQueue<>(new ProcessComparator());
+        int time = 0;
+        int arrivalIdx = 0;
+        Process current = null;
+        boolean firstRun = true;
 
-        int currentTime = 0;
-        int arrivalIndex = 0;
-        Process currentProcess = null;
-        boolean isFirstSwitch = true;
+        while (true) {
+            boolean allDone = working.stream().allMatch(p -> p.getRemainingTime() == 0);
+            if (allDone) break;
 
-        while (!pending.isEmpty()) {
-            // Add all processes that have arrived by currentTime
-            while (arrivalIndex < arrivalOrder.size() && arrivalOrder.get(arrivalIndex).getArrivalTime() <= currentTime) {
-                readyQueue.add(arrivalOrder.get(arrivalIndex));
-                arrivalIndex++;
+            // Add arrived processes
+            while (arrivalIdx < arrivals.size() && arrivals.get(arrivalIdx).getArrivalTime() <= time) {
+                ready.offer(arrivals.get(arrivalIdx));
+                arrivalIdx++;
             }
 
-            // If ready queue is empty but more processes will arrive, idle until next arrival
-            if (readyQueue.isEmpty() && arrivalIndex < arrivalOrder.size()) {
-                int startIdle = currentTime;
-                currentTime = arrivalOrder.get(arrivalIndex).getArrivalTime();
-                addSlice("IDLE", startIdle, currentTime);
+            // Idle if nothing ready
+            if (ready.isEmpty()) {
+                if (arrivalIdx >= arrivals.size()) break;
+                int idleStart = time;
+                time = arrivals.get(arrivalIdx).getArrivalTime();
+                addSlice("IDLE", idleStart, time);
                 continue;
-            } else if (readyQueue.isEmpty()) {
-                break;  // All done
             }
 
-            // Check for preemption: if a better (shorter remaining) process is ready
-            Process nextBest = readyQueue.peek();
-            if (currentProcess != null && nextBest.getRemainingTime() < currentProcess.getRemainingTime()) {
-                // Preempt: put current back in queue
-                readyQueue.add(currentProcess);
-                currentProcess = null;
+            // Preemption: check if better process arrived
+            if (current != null && !ready.isEmpty() && ready.peek().getRemainingTime() < current.getRemainingTime()) {
+                ready.offer(current);
+                current = null;
             }
 
-            // If no current process, select the next best and handle context switch
-            if (currentProcess == null) {
-                currentProcess = readyQueue.poll();
+            // Switch to new process
+            if (current == null) {
+                current = ready.poll();
 
-                // Add context switch time if not the first execution and switching
-                if (!isFirstSwitch) {
-                    int startCS = currentTime;
-                    currentTime += contextSwitchTime;
-                    addSlice("CS", startCS, currentTime);
+                if (!firstRun && contextSwitchTime > 0) {
+                    int csStart = time;
+                    time += contextSwitchTime;
+                    addSlice("CS", csStart, time);
 
-                    // Add any processes that arrived during context switch
-                    while (arrivalIndex < arrivalOrder.size() && arrivalOrder.get(arrivalIndex).getArrivalTime() <= currentTime) {
-                        readyQueue.add(arrivalOrder.get(arrivalIndex));
-                        arrivalIndex++;
+                    // Add any arrivals during CS
+                    while (arrivalIdx < arrivals.size() && arrivals.get(arrivalIdx).getArrivalTime() <= time) {
+                        ready.offer(arrivals.get(arrivalIdx));
+                        arrivalIdx++;
+                    }
+
+                    // Re-check preemption after CS
+                    if (!ready.isEmpty() && ready.peek().getRemainingTime() < current.getRemainingTime()) {
+                        ready.offer(current);
+                        current = ready.poll();
                     }
                 }
-                isFirstSwitch = false;
+                firstRun = false;
             }
 
-            // Determine how long to execute: until next arrival or process finishes
-            int nextEventTime = (arrivalIndex < arrivalOrder.size()) ? arrivalOrder.get(arrivalIndex).getArrivalTime() : Integer.MAX_VALUE;
-            int executeAmount = Math.min(currentProcess.getRemainingTime(), nextEventTime - currentTime);
+            // Execute one unit at a time to allow immediate preemption
+            int execStart = time;
+            time++;
+            current.decreaseRemaining(1);
+            addSlice(current.getName(), execStart, time);
 
-            if (executeAmount <= 0) {
-                continue;  // No execution possible, loop to handle arrivals
+            // Add new arrivals at this exact time
+            while (arrivalIdx < arrivals.size() && arrivals.get(arrivalIdx).getArrivalTime() == time - 1) {
+                ready.offer(arrivals.get(arrivalIdx));
+                arrivalIdx++;
             }
 
-            // Execute and record slice
-            int start = currentTime;
-            currentTime += executeAmount;
-            currentProcess.decreaseRemaining(executeAmount);
-            addSlice(currentProcess.getName(), start, currentTime);
-
-            // If process finishes
-            if (currentProcess.getRemainingTime() == 0) {
-                currentProcess.setCompletionTime(currentTime);
-                pending.remove(currentProcess);
-                currentProcess = null;
+            // Completion
+            if (current.getRemainingTime() == 0) {
+                current.setCompletionTime(time);
+                current = null;
             }
         }
 
-        // Compute final metrics (waiting and turnaround)
-        computeMetrics(workingProcesses);
+        computeMetrics(working);
     }
 }
 ```
