@@ -11,7 +11,7 @@ src/
 ├── main/
 │   └── java/
 │       ├── core/
-│       │   ├── Process.java
+│       │   ├── Process.java 
 │       │   ├── SchedulerBase.java
 │       │   ├── ExecutionSlice.java
 │       │   └── ResultFormatter.java
@@ -532,6 +532,8 @@ public class RoundRobinScheduler extends SchedulerBase {
 
 ## **schedulers/PriorityPreemptiveScheduler.java** (Person 3)
 
+recommended implementation
+
 ```java
 package schedulers;
 
@@ -888,38 +890,68 @@ not implemented yet
 package io;
 
 import core.Process;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 
 public class InputParser {
 
-    public static List<Process> readProcesses() {
+    /**
+     * Reads input exactly as specified in the assignment:
+     * 1. Number of processes
+     * 2. Round Robin Time Quantum
+     * 3. Context switching time
+     * 4. For each process: Name, Arrival Time, Burst Time, Priority
+     * 
+     * Note: Quantum is NOT read from user input — it's only used internally for AG Scheduling
+     */
+    public static InputData readInput() {
         Scanner sc = new Scanner(System.in);
-        List<Process> list = new ArrayList<>();
 
         System.out.print("Enter number of processes: ");
         int n = sc.nextInt();
 
+        System.out.print("Enter Round Robin Time Quantum: ");
+        int rrQuantum = sc.nextInt();
+
+        System.out.print("Enter context switching time: ");
+        int contextSwitch = sc.nextInt();
+
+        List<Process> processes = new ArrayList<>();
+
         for (int i = 0; i < n; i++) {
-            System.out.println("Process " + (i + 1));
+            System.out.println("\nProcess " + (i + 1));
             System.out.print("Name: ");
             String name = sc.next();
 
             System.out.print("Arrival Time: ");
-            int a = sc.nextInt();
+            int arrival = sc.nextInt();
 
             System.out.print("Burst Time: ");
-            int b = sc.nextInt();
+            int burst = sc.nextInt();
 
             System.out.print("Priority: ");
-            int p = sc.nextInt();
+            int priority = sc.nextInt();
 
-            System.out.print("Quantum (for AG/optional): ");
-            int q = sc.nextInt();
-
-            list.add(new Process(name, a, b, p, q));
+            // Quantum is NOT read from user — default to 0, AG will manage it
+            processes.add(new Process(name, arrival, burst, priority, 0));
         }
 
-        return list;
+        return new InputData(processes, rrQuantum, contextSwitch);
+    }
+
+    // Wrapper class to return all input data together
+    public static class InputData {
+        public final List<Process> processes;
+        public final int rrQuantum;
+        public final int contextSwitchTime;
+
+        public InputData(List<Process> processes, int rrQuantum, int contextSwitchTime) {
+            this.processes = processes;
+            this.rrQuantum = rrQuantum;
+            this.contextSwitchTime = contextSwitchTime;
+        }
     }
 }
 ```
@@ -935,51 +967,71 @@ public class InputParser {
 not implemented yet
 
 ```java
-import schedulers.*;
 import core.*;
-import io.*;
-import java.util.*;
+import io.InputParser;
+import io.InputParser.InputData;
+import schedulers.*;
+
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
+        // Read all input at once
+        InputData input = InputParser.readInput();
+        List<Process> originalProcesses = input.processes;
+        int contextSwitchTime = input.contextSwitchTime;
+        int rrQuantum = input.rrQuantum;
 
-        List<Process> processes = InputParser.readProcesses();
-
-        System.out.print("Enter context switching time: ");
-        Scanner sc = new Scanner(System.in);
-        int cs = sc.nextInt();
-
-        System.out.println("Choose scheduler:");
+        System.out.println("\nChoose scheduler:");
         System.out.println("1. SJF (Preemptive)");
         System.out.println("2. Round Robin");
         System.out.println("3. Priority (Preemptive w/ aging)");
         System.out.println("4. AG Scheduling");
 
+        java.util.Scanner sc = new java.util.Scanner(System.in);
         int choice = sc.nextInt();
 
         SchedulerBase scheduler = null;
+        String schedulerName = "";
 
         switch (choice) {
             case 1:
                 scheduler = new SJFPreemptiveScheduler();
+                schedulerName = "Preemptive Shortest Job First (SJF)";
                 break;
             case 2:
                 scheduler = new RoundRobinScheduler();
+                schedulerName = "Round Robin";
                 break;
             case 3:
                 scheduler = new PriorityPreemptiveScheduler();
+                schedulerName = "Preemptive Priority (with Aging)";
                 break;
             case 4:
                 scheduler = new AGScheduler();
+                schedulerName = "AG Scheduling";
                 break;
             default:
                 System.out.println("Invalid choice!");
                 return;
         }
 
-        scheduler.run(processes, cs);
-        ResultFormatter.printTable(processes);
-        GanttChartPrinter.print(scheduler.getSlices());
+        // Run scheduler on a copy of processes
+        scheduler.run(originalProcesses, contextSwitchTime, rrQuantum);
+
+        // Print results using the beautiful formatter
+        ResultFormatter.printResults(
+            schedulerName,
+            originalProcesses,
+            scheduler.getSlices(),
+            contextSwitchTime
+        );
+
+        // Special output for AG: Quantum History
+        if (scheduler instanceof AGScheduler agScheduler) {
+            agScheduler.printQuantumHistory();
+        }
     }
+}
 }
 ```
