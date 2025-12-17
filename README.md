@@ -14,8 +14,7 @@ src/
 │       │   ├── Process.java
 │       │   ├── SchedulerBase.java
 │       │   ├── ExecutionSlice.java
-│       │   ├── ResultFormatter.java
-│       │   └── GanttChartPrinter.java
+│       │   └── ResultFormatter.java
 │       ├── schedulers/
 │       │   ├── SJFPreemptiveScheduler.java
 │       │   ├── RoundRobinScheduler.java
@@ -380,33 +379,6 @@ public class ResultFormatter {
 
 ---
 
-## **core/GanttChartPrinter.java** (Person 4)
-
-not implemented yet
-```java
-package core;
-
-import java.util.List;
-
-public class GanttChartPrinter {
-
-    public static void print(List<ExecutionSlice> slices) {
-        System.out.println("\nGantt Chart:");
-        for (ExecutionSlice s : slices) {
-            System.out.print("| " + s.processName + " ");
-        }
-        System.out.println("|");
-
-        for (ExecutionSlice s : slices) {
-            System.out.print(s.start + "      ");
-        }
-        System.out.println(slices.get(slices.size() - 1).end);
-    }
-}
-```
-
----
-
 # **2. Schedulers (Persons 1,2,3,4)**
 
 ---
@@ -565,281 +537,108 @@ package schedulers;
 
 import core.Process;
 import core.SchedulerBase;
-import core.ExecutionSlice;
 
 import java.util.*;
 
-/**
- * Implementation of Preemptive Priority Scheduling with Aging
- * Lower priority number = higher priority (1 > 2)
- * Preemptive: running process can be interrupted if a higher priority process arrives
- * Aging: increases priority of waiting processes to prevent starvation
- */
 public class PriorityPreemptiveScheduler extends SchedulerBase {
-
-    // Aging interval: apply priority boost every X time units
-    private static final int AGING_INTERVAL = 5;
 
     @Override
     public void run(List<Process> processes, int contextSwitchTime, int rrQuantum) {
-        // Create working copies to avoid modifying original processes
-        List<Process> workProcesses = createWorkingCopies(processes);
+        // rrQuantum not used here, but agingInterval is in test cases — use a default or ignore
+        // Test cases use agingInterval, but assignment doesn't specify — use 5 as safe default
+        final int AGING_INTERVAL = 5;
 
-        // Sort processes by arrival time for efficient arrival handling
-        List<Process> sortedByArrival = new ArrayList<>(workProcesses);
-        sortedByArrival.sort(Comparator.comparingInt(Process::getArrivalTime));
-
-        // Ready queue: prioritized by (priority, arrival time)
-        // Lower priority number = higher priority
-        PriorityQueue<Process> readyQueue = createReadyQueue();
-
-        // Scheduling state tracking
-        SchedulingState state = new SchedulingState(contextSwitchTime);
-
-        // Map to track waiting time for aging
-        Map<Process, Integer> waitingTimeMap = new HashMap<>();
-
-        // Main scheduling loop
-        while (!allProcessesCompleted(workProcesses)) {
-            // Add newly arrived processes to ready queue
-            addArrivedProcesses(sortedByArrival, readyQueue, waitingTimeMap, state.currentTime);
-
-            // Apply aging periodically to prevent starvation
-            if (shouldApplyAging(state.currentTime)) {
-                applyAgingToQueue(readyQueue, waitingTimeMap);
-            }
-
-            // Check for preemption: if higher priority process is in ready queue
-            checkAndHandlePreemption(readyQueue, state, waitingTimeMap);
-
-            // If no process is running, select one from ready queue
-            if (state.currentProcess == null && !readyQueue.isEmpty()) {
-                selectNewProcess(readyQueue, state, contextSwitchTime);
-                // Add context switch if not first execution
-                if (!state.isFirstExecution) {
-                    addContextSwitch(state, contextSwitchTime);
-                }
-                state.isFirstExecution = false;
-            }
-
-            // Handle idle time if no process is ready
-            if (state.currentProcess == null && hasPendingProcesses(sortedByArrival, state.currentTime)) {
-                handleIdleTime(sortedByArrival, state);
-                continue;
-            }
-
-            // If no process to run (should not happen in valid state)
-            if (state.currentProcess == null) {
-                state.currentTime++;
-                continue;
-            }
-
-            // Execute current process for 1 time unit
-            executeProcess(state, waitingTimeMap, readyQueue);
-        }
-
-        // Calculate final metrics (waiting time, turnaround time)
-        computeMetrics(workProcesses);
-    }
-
-    // ============ HELPER METHODS ============
-
-    /**
-     * Creates working copies of processes to avoid modifying originals
-     */
-    private List<Process> createWorkingCopies(List<Process> processes) {
-        List<Process> copies = new ArrayList<>();
+        List<Process> working = new ArrayList<>();
         for (Process p : processes) {
-            copies.add(p.copy());
+            working.add(p.copy());
         }
-        return copies;
-    }
 
-    /**
-     * Creates a priority queue for ready processes
-     * Priority order: lower priority number first, then earlier arrival time
-     */
-    private PriorityQueue<Process> createReadyQueue() {
-        return new PriorityQueue<>(
-                Comparator.comparingInt(Process::getPriority)
-                        .thenComparingInt(Process::getArrivalTime)
+        // Sort for arrival handling
+        List<Process> arrivals = new ArrayList<>(working);
+        arrivals.sort(Comparator.comparingInt(Process::getArrivalTime));
+
+        // Ready queue: lower priority number = higher priority
+        PriorityQueue<Process> ready = new PriorityQueue<>(
+            Comparator.comparingInt(Process::getPriority)
+                      .thenComparingInt(Process::getArrivalTime)
         );
-    }
 
-    /**
-     * Adds processes that have arrived by current time to ready queue
-     */
-    private void addArrivedProcesses(List<Process> sortedProcesses,
-                                     PriorityQueue<Process> readyQueue,
-                                     Map<Process, Integer> waitingMap,
-                                     int currentTime) {
-        int index = 0;
-        while (index < sortedProcesses.size() &&
-                sortedProcesses.get(index).getArrivalTime() <= currentTime &&
-                sortedProcesses.get(index).getRemainingTime() > 0) {
-            Process p = sortedProcesses.get(index);
-            if (!readyQueue.contains(p)) {
-                readyQueue.add(p);
-                waitingMap.putIfAbsent(p, 0);
+        int time = 0;
+        int arrivalIdx = 0;
+        Process current = null;
+        boolean firstRun = true;
+
+        while (true) {
+            boolean allDone = working.stream().allMatch(p -> p.getRemainingTime() == 0);
+            if (allDone) break;
+
+            // Add arrived processes
+            while (arrivalIdx < arrivals.size() && arrivals.get(arrivalIdx).getArrivalTime() <= time) {
+                ready.offer(arrivals.get(arrivalIdx));
+                arrivalIdx++;
             }
-            index++;
-        }
-    }
 
-    /**
-     * Checks if aging should be applied at current time
-     */
-    private boolean shouldApplyAging(int currentTime) {
-        return currentTime > 0 && currentTime % AGING_INTERVAL == 0;
-    }
+            // Idle if nothing ready
+            if (ready.isEmpty() && arrivalIdx < arrivals.size()) {
+                int idleStart = time;
+                time = arrivals.get(arrivalIdx).getArrivalTime();
+                addSlice("IDLE", idleStart, time);
+                continue;
+            }
 
-    /**
-     * Applies aging to processes in ready queue
-     * Increases priority (lowers priority number) of waiting processes
-     */
-    private void applyAgingToQueue(PriorityQueue<Process> readyQueue,
-                                   Map<Process, Integer> waitingMap) {
-        List<Process> tempList = new ArrayList<>();
+            // Preemption check
+            if (current != null && !ready.isEmpty() && ready.peek().getPriority() < current.getPriority()) {
+                ready.offer(current);
+                current = null;
+            }
 
-        // Remove all processes to modify priorities
-        while (!readyQueue.isEmpty()) {
-            tempList.add(readyQueue.poll());
-        }
+            // Select new process if none running
+            if (current == null) {
+                if (ready.isEmpty()) {
+                    time++;
+                    continue;
+                }
+                current = ready.poll();
 
-        // Apply aging to each process
-        for (Process p : tempList) {
-            int waitTime = waitingMap.getOrDefault(p, 0);
-            if (waitTime >= AGING_INTERVAL) {
-                // Increase priority (lower number = higher priority)
-                // Ensure priority doesn't go below 0
-                int newPriority = Math.max(0, p.getPriority() - 1);
-                p.setPriority(newPriority);
+                if (!firstRun && contextSwitchTime > 0) {
+                    int csStart = time;
+                    time += contextSwitchTime;
+                    addSlice("CS", csStart, time);
 
-                // Reset wait counter for this aging cycle
-                waitingMap.put(p, 0);
+                    // Add arrivals during CS
+                    while (arrivalIdx < arrivals.size() && arrivals.get(arrivalIdx).getArrivalTime() <= time) {
+                        ready.offer(arrivals.get(arrivalIdx));
+                        arrivalIdx++;
+                    }
+                }
+                firstRun = false;
+            }
+
+            // Aging: every AGING_INTERVAL time units, boost waiting processes
+            if (time > 0 && time % AGING_INTERVAL == 0) {
+                List<Process> temp = new ArrayList<>();
+                while (!ready.isEmpty()) {
+                    Process p = ready.poll();
+                    p.setPriority(Math.max(0, p.getPriority() - 1)); // increase priority
+                    temp.add(p);
+                }
+                ready.addAll(temp);
+            }
+
+            // Execute one unit
+            int execStart = time;
+            time++;
+            current.decreaseRemaining(1);
+            addSlice(current.getName(), execStart, time);
+
+            // Check completion
+            if (current.getRemainingTime() == 0) {
+                current.setCompletionTime(time);
+                current = null;
             }
         }
 
-        // Add processes back with updated priorities
-        readyQueue.addAll(tempList);
-    }
-
-    /**
-     * Checks for and handles preemption
-     */
-    private void checkAndHandlePreemption(PriorityQueue<Process> readyQueue,
-                                          SchedulingState state,
-                                          Map<Process, Integer> waitingMap) {
-        if (state.currentProcess != null && !readyQueue.isEmpty()) {
-            Process highestPriority = readyQueue.peek();
-            if (highestPriority.getPriority() < state.currentProcess.getPriority()) {
-                // Preempt current process
-                readyQueue.add(state.currentProcess);
-                waitingMap.put(state.currentProcess, 0);
-                state.currentProcess = null;
-            }
-        }
-    }
-
-    /**
-     * Selects new process from ready queue
-     */
-    private void selectNewProcess(PriorityQueue<Process> readyQueue,
-                                  SchedulingState state,
-                                  int contextSwitchTime) {
-        state.currentProcess = readyQueue.poll();
-    }
-
-    /**
-     * Adds context switch to execution timeline
-     */
-    private void addContextSwitch(SchedulingState state, int contextSwitchTime) {
-        int csStart = state.currentTime;
-        state.currentTime += contextSwitchTime;
-        addSlice("CS", csStart, state.currentTime);
-    }
-
-    /**
-     * Handles idle time when no process is ready
-     */
-    private void handleIdleTime(List<Process> sortedProcesses, SchedulingState state) {
-        int idleStart = state.currentTime;
-        int nextArrival = sortedProcesses.stream()
-                .filter(p -> p.getArrivalTime() > state.currentTime)
-                .mapToInt(Process::getArrivalTime)
-                .min()
-                .orElse(state.currentTime + 1);
-
-        state.currentTime = nextArrival;
-        if (idleStart < state.currentTime) {
-            addSlice("IDLE", idleStart, state.currentTime);
-        }
-    }
-
-    /**
-     * Executes current process for 1 time unit
-     */
-    private void executeProcess(SchedulingState state,
-                                Map<Process, Integer> waitingMap,
-                                PriorityQueue<Process> readyQueue) {
-        int startTime = state.currentTime;
-        state.currentTime++;
-
-        // Record execution slice
-        addSlice(state.currentProcess.getName(), startTime, state.currentTime);
-
-        // Update process state
-        state.currentProcess.decreaseRemaining(1);
-
-        // Update waiting times for other processes in ready queue
-        updateWaitingTimes(readyQueue, waitingMap, 1);
-
-        // Check if process has completed
-        if (state.currentProcess.getRemainingTime() == 0) {
-            state.currentProcess.setCompletionTime(state.currentTime);
-            waitingMap.remove(state.currentProcess);
-            state.currentProcess = null;
-        }
-    }
-
-    /**
-     * Updates waiting times for processes in ready queue
-     */
-    private void updateWaitingTimes(PriorityQueue<Process> readyQueue,
-                                    Map<Process, Integer> waitingMap,
-                                    int elapsedTime) {
-        for (Process p : readyQueue) {
-            waitingMap.put(p, waitingMap.getOrDefault(p, 0) + elapsedTime);
-        }
-    }
-
-    /**
-     * Checks if all processes have completed
-     */
-    private boolean allProcessesCompleted(List<Process> processes) {
-        return processes.stream().allMatch(p -> p.getRemainingTime() == 0);
-    }
-
-    /**
-     * Checks if there are pending processes that haven't arrived yet
-     */
-    private boolean hasPendingProcesses(List<Process> sortedProcesses, int currentTime) {
-        return sortedProcesses.stream()
-                .anyMatch(p -> p.getArrivalTime() > currentTime && p.getRemainingTime() > 0);
-    }
-
-    /**
-     * Internal class to track scheduling state
-     */
-    private static class SchedulingState {
-        int currentTime = 0;
-        Process currentProcess = null;
-        boolean isFirstExecution = true;
-        final int contextSwitchTime;
-
-        SchedulingState(int contextSwitchTime) {
-            this.contextSwitchTime = contextSwitchTime;
-        }
+        computeMetrics(working);
     }
 }
 ```
