@@ -1208,3 +1208,566 @@ public class Main {
 }
 }
 ```
+
+---
+
+# **5. Json files**
+
+---
+
+## **test_1.json**
+
+```java
+{
+  "name": "Test Case 1: Basic mixed arrivals",
+  "input": {
+    "contextSwitch": 1,
+    "rrQuantum": 2,
+    "agingInterval": 5,
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 8, "priority": 3},
+      {"name": "P2", "arrival": 1, "burst": 4, "priority": 1},
+      {"name": "P3", "arrival": 2, "burst": 2, "priority": 4},
+      {"name": "P4", "arrival": 3, "burst": 1, "priority": 2},
+      {"name": "P5", "arrival": 4, "burst": 3, "priority": 5}
+    ]
+  },
+  "expectedOutput": {
+    "SJF": {
+      "executionOrder": ["P1", "P2", "P4", "P3", "P2", "P5", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 16, "turnaroundTime": 24},
+        {"name": "P2", "waitingTime": 7, "turnaroundTime": 11},
+        {"name": "P3", "waitingTime": 4, "turnaroundTime": 6},
+        {"name": "P4", "waitingTime": 1, "turnaroundTime": 2},
+        {"name": "P5", "waitingTime": 9, "turnaroundTime": 12}
+      ],
+      "averageWaitingTime": 7.4,
+      "averageTurnaroundTime": 11.0
+    },
+    "RR": {
+      "executionOrder": ["P1", "P2", "P3", "P1", "P4", "P5", "P2", "P1", "P5", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 19, "turnaroundTime": 27},
+        {"name": "P2", "waitingTime": 14, "turnaroundTime": 18},
+        {"name": "P3", "waitingTime": 4, "turnaroundTime": 6},
+        {"name": "P4", "waitingTime": 9, "turnaroundTime": 10},
+        {"name": "P5", "waitingTime": 17, "turnaroundTime": 20}
+      ],
+      "averageWaitingTime": 12.6,
+      "averageTurnaroundTime": 16.2
+    },
+    "Priority": {
+      "executionOrder": ["P1", "P2", "P1", "P4", "P1", "P3", "P1", "P5", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 18, "turnaroundTime": 26},
+        {"name": "P2", "waitingTime": 1, "turnaroundTime": 5},
+        {"name": "P3", "waitingTime": 12, "turnaroundTime": 14},
+        {"name": "P4", "waitingTime": 6, "turnaroundTime": 7},
+        {"name": "P5", "waitingTime": 16, "turnaroundTime": 19}
+      ],
+      "averageWaitingTime": 10.6,
+      "averageTurnaroundTime": 14.2
+    }
+  }
+}
+
+```
+---
+
+## **test_2.json**
+
+```java
+{
+  "name": "Test Case 2: All processes arrive at time 0",
+  "input": {
+    "contextSwitch": 1,
+    "rrQuantum": 3,
+    "agingInterval": 5,
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 6, "priority": 3},
+      {"name": "P2", "arrival": 0, "burst": 3, "priority": 1},
+      {"name": "P3", "arrival": 0, "burst": 8, "priority": 2},
+      {"name": "P4", "arrival": 0, "burst": 4, "priority": 4},
+      {"name": "P5", "arrival": 0, "burst": 2, "priority": 5}
+    ]
+  },
+  "expectedOutput": {
+    "SJF": {
+      "executionOrder": ["P5", "P2", "P4", "P1", "P3"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 12, "turnaroundTime": 18},
+        {"name": "P2", "waitingTime": 3, "turnaroundTime": 6},
+        {"name": "P3", "waitingTime": 19, "turnaroundTime": 27},
+        {"name": "P4", "waitingTime": 7, "turnaroundTime": 11},
+        {"name": "P5", "waitingTime": 0, "turnaroundTime": 2}
+      ],
+      "averageWaitingTime": 8.2,
+      "averageTurnaroundTime": 12.8
+    },
+    "RR": {
+      "executionOrder": ["P1", "P2", "P3", "P4", "P5", "P1", "P3", "P4", "P3"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 16, "turnaroundTime": 22},
+        {"name": "P2", "waitingTime": 4, "turnaroundTime": 7},
+        {"name": "P3", "waitingTime": 23, "turnaroundTime": 31},
+        {"name": "P4", "waitingTime": 24, "turnaroundTime": 28},
+        {"name": "P5", "waitingTime": 16, "turnaroundTime": 18}
+      ],
+      "averageWaitingTime": 16.6,
+      "averageTurnaroundTime": 21.2
+    },
+    "Priority": {
+      "executionOrder": ["P2", "P3", "P1", "P4", "P3", "P5", "P4"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 11, "turnaroundTime": 17},
+        {"name": "P2", "waitingTime": 0, "turnaroundTime": 3},
+        {"name": "P3", "waitingTime": 15, "turnaroundTime": 23},
+        {"name": "P4", "waitingTime": 25, "turnaroundTime": 29},
+        {"name": "P5", "waitingTime": 24, "turnaroundTime": 26}
+      ],
+      "averageWaitingTime": 15.0,
+      "averageTurnaroundTime": 19.6
+    }
+  }
+}
+
+```
+---
+
+## **test_3.json**
+
+```java
+{
+  "name": "Test Case 3: Varied burst times with starvation risk",
+  "input": {
+    "contextSwitch": 1,
+    "rrQuantum": 4,
+    "agingInterval": 4,
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 10, "priority": 5},
+      {"name": "P2", "arrival": 2, "burst": 5, "priority": 1},
+      {"name": "P3", "arrival": 5, "burst": 3, "priority": 2},
+      {"name": "P4", "arrival": 8, "burst": 7, "priority": 1},
+      {"name": "P5", "arrival": 10, "burst": 2, "priority": 3}
+    ]
+  },
+  "expectedOutput": {
+    "SJF": {
+      "executionOrder": ["P1", "P2", "P3", "P5", "P4", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 22, "turnaroundTime": 32},
+        {"name": "P2", "waitingTime": 1, "turnaroundTime": 6},
+        {"name": "P3", "waitingTime": 4, "turnaroundTime": 7},
+        {"name": "P4", "waitingTime": 8, "turnaroundTime": 15},
+        {"name": "P5", "waitingTime": 3, "turnaroundTime": 5}
+      ],
+      "averageWaitingTime": 7.6,
+      "averageTurnaroundTime": 13.0
+    },
+    "RR": {
+      "executionOrder": ["P1", "P2", "P1", "P3", "P4", "P2", "P5", "P1", "P4"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 21, "turnaroundTime": 31},
+        {"name": "P2", "waitingTime": 18, "turnaroundTime": 23},
+        {"name": "P3", "waitingTime": 10, "turnaroundTime": 13},
+        {"name": "P4", "waitingTime": 20, "turnaroundTime": 27},
+        {"name": "P5", "waitingTime": 16, "turnaroundTime": 18}
+      ],
+      "averageWaitingTime": 17.0,
+      "averageTurnaroundTime": 22.4
+    },
+    "Priority": {
+      "executionOrder": ["P1", "P2", "P4", "P3", "P4", "P1", "P5", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 24, "turnaroundTime": 34},
+        {"name": "P2", "waitingTime": 1, "turnaroundTime": 6},
+        {"name": "P3", "waitingTime": 9, "turnaroundTime": 12},
+        {"name": "P4", "waitingTime": 6, "turnaroundTime": 13},
+        {"name": "P5", "waitingTime": 13, "turnaroundTime": 15}
+      ],
+      "averageWaitingTime": 10.6,
+      "averageTurnaroundTime": 16.0
+    }
+  }
+}
+
+```
+---
+
+## **test_4.json**
+
+```java
+{
+  "name": "Test Case 4: Large bursts with gaps in arrivals",
+  "input": {
+    "contextSwitch": 2,
+    "rrQuantum": 5,
+    "agingInterval": 6,
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 12, "priority": 2},
+      {"name": "P2", "arrival": 4, "burst": 9, "priority": 3},
+      {"name": "P3", "arrival": 8, "burst": 15, "priority": 1},
+      {"name": "P4", "arrival": 12, "burst": 6, "priority": 4},
+      {"name": "P5", "arrival": 16, "burst": 11, "priority": 2},
+      {"name": "P6", "arrival": 20, "burst": 5, "priority": 5}
+    ]
+  },
+  "expectedOutput": {
+    "SJF": {
+      "executionOrder": ["P1", "P4", "P6", "P2", "P5", "P3"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 0, "turnaroundTime": 12},
+        {"name": "P2", "waitingTime": 25, "turnaroundTime": 34},
+        {"name": "P3", "waitingTime": 45, "turnaroundTime": 60},
+        {"name": "P4", "waitingTime": 2, "turnaroundTime": 8},
+        {"name": "P5", "waitingTime": 24, "turnaroundTime": 35},
+        {"name": "P6", "waitingTime": 2, "turnaroundTime": 7}
+      ],
+      "averageWaitingTime": 16.33,
+      "averageTurnaroundTime": 26.0
+    },
+    "RR": {
+      "executionOrder": ["P1", "P2", "P1", "P3", "P4", "P2", "P5", "P1", "P6", "P3", "P4", "P5", "P3", "P5"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 38, "turnaroundTime": 50},
+        {"name": "P2", "waitingTime": 26, "turnaroundTime": 35},
+        {"name": "P3", "waitingTime": 58, "turnaroundTime": 73},
+        {"name": "P4", "waitingTime": 49, "turnaroundTime": 55},
+        {"name": "P5", "waitingTime": 57, "turnaroundTime": 68},
+        {"name": "P6", "waitingTime": 32, "turnaroundTime": 37}
+      ],
+      "averageWaitingTime": 43.33,
+      "averageTurnaroundTime": 53.0
+    },
+    "Priority": {
+      "executionOrder": ["P1", "P3", "P1", "P2", "P3", "P5", "P4", "P2", "P6", "P5", "P2"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 14, "turnaroundTime": 26},
+        {"name": "P2", "waitingTime": 65, "turnaroundTime": 74},
+        {"name": "P3", "waitingTime": 16, "turnaroundTime": 31},
+        {"name": "P4", "waitingTime": 38, "turnaroundTime": 44},
+        {"name": "P5", "waitingTime": 48, "turnaroundTime": 59},
+        {"name": "P6", "waitingTime": 44, "turnaroundTime": 49}
+      ],
+      "averageWaitingTime": 37.5,
+      "averageTurnaroundTime": 47.17
+    }
+  }
+}
+
+```
+---
+
+## **test_5.json**
+
+```java
+{
+  "name": "Test Case 5: Short bursts with high frequency",
+  "input": {
+    "contextSwitch": 1,
+    "rrQuantum": 2,
+    "agingInterval": 3,
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 3, "priority": 3},
+      {"name": "P2", "arrival": 1, "burst": 2, "priority": 1},
+      {"name": "P3", "arrival": 2, "burst": 4, "priority": 2},
+      {"name": "P4", "arrival": 3, "burst": 1, "priority": 4},
+      {"name": "P5", "arrival": 4, "burst": 3, "priority": 5}
+    ]
+  },
+  "expectedOutput": {
+    "SJF": {
+      "executionOrder": ["P1", "P4", "P2", "P5", "P3"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 0, "turnaroundTime": 3},
+        {"name": "P2", "waitingTime": 5, "turnaroundTime": 7},
+        {"name": "P3", "waitingTime": 11, "turnaroundTime": 15},
+        {"name": "P4", "waitingTime": 1, "turnaroundTime": 2},
+        {"name": "P5", "waitingTime": 5, "turnaroundTime": 8}
+      ],
+      "averageWaitingTime": 4.4,
+      "averageTurnaroundTime": 7.0
+    },
+    "RR": {
+      "executionOrder": ["P1", "P2", "P3", "P1", "P4", "P5", "P3", "P5"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 7, "turnaroundTime": 10},
+        {"name": "P2", "waitingTime": 2, "turnaroundTime": 4},
+        {"name": "P3", "waitingTime": 12, "turnaroundTime": 16},
+        {"name": "P4", "waitingTime": 8, "turnaroundTime": 9},
+        {"name": "P5", "waitingTime": 13, "turnaroundTime": 16}
+      ],
+      "averageWaitingTime": 8.4,
+      "averageTurnaroundTime": 11.0
+    },
+    "Priority": {
+      "executionOrder": ["P1", "P2", "P1", "P3", "P1", "P4", "P5", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 17, "turnaroundTime": 20},
+        {"name": "P2", "waitingTime": 1, "turnaroundTime": 3},
+        {"name": "P3", "waitingTime": 5, "turnaroundTime": 9},
+        {"name": "P4", "waitingTime": 10, "turnaroundTime": 11},
+        {"name": "P5", "waitingTime": 11, "turnaroundTime": 14}
+      ],
+      "averageWaitingTime": 8.8,
+      "averageTurnaroundTime": 11.4
+    }
+  }
+}
+
+```
+---
+
+## **test_6.json**
+
+```java
+{
+  "name": "Test Case 6: Mixed scenario - comprehensive test",
+  "input": {
+    "contextSwitch": 1,
+    "rrQuantum": 4,
+    "agingInterval": 5,
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 14, "priority": 4},
+      {"name": "P2", "arrival": 3, "burst": 7, "priority": 2},
+      {"name": "P3", "arrival": 6, "burst": 10, "priority": 5},
+      {"name": "P4", "arrival": 9, "burst": 5, "priority": 1},
+      {"name": "P5", "arrival": 12, "burst": 8, "priority": 3},
+      {"name": "P6", "arrival": 15, "burst": 4, "priority": 6}
+    ]
+  },
+  "expectedOutput": {
+    "SJF": {
+      "executionOrder": ["P1", "P2", "P4", "P6", "P5", "P3", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 40, "turnaroundTime": 54},
+        {"name": "P2", "waitingTime": 1, "turnaroundTime": 8},
+        {"name": "P3", "waitingTime": 26, "turnaroundTime": 36},
+        {"name": "P4", "waitingTime": 3, "turnaroundTime": 8},
+        {"name": "P5", "waitingTime": 11, "turnaroundTime": 19},
+        {"name": "P6", "waitingTime": 3, "turnaroundTime": 7}
+      ],
+      "averageWaitingTime": 14.0,
+      "averageTurnaroundTime": 22.0
+    },
+    "RR": {
+      "executionOrder": ["P1", "P2", "P1", "P3", "P4", "P2", "P5", "P1", "P6", "P3", "P4", "P5", "P1", "P3"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 44, "turnaroundTime": 58},
+        {"name": "P2", "waitingTime": 18, "turnaroundTime": 25},
+        {"name": "P3", "waitingTime": 45, "turnaroundTime": 55},
+        {"name": "P4", "waitingTime": 36, "turnaroundTime": 41},
+        {"name": "P5", "waitingTime": 35, "turnaroundTime": 43},
+        {"name": "P6", "waitingTime": 24, "turnaroundTime": 28}
+      ],
+      "averageWaitingTime": 33.67,
+      "averageTurnaroundTime": 41.67
+    },
+    "Priority": {
+      "executionOrder": ["P1", "P2", "P4", "P2", "P1", "P5", "P3", "P1", "P6", "P1"],
+      "processResults": [
+        {"name": "P1", "waitingTime": 43, "turnaroundTime": 57},
+        {"name": "P2", "waitingTime": 8, "turnaroundTime": 15},
+        {"name": "P3", "waitingTime": 31, "turnaroundTime": 41},
+        {"name": "P4", "waitingTime": 1, "turnaroundTime": 6},
+        {"name": "P5", "waitingTime": 16, "turnaroundTime": 24},
+        {"name": "P6", "waitingTime": 36, "turnaroundTime": 40}
+      ],
+      "averageWaitingTime": 22.5,
+      "averageTurnaroundTime": 30.5
+    }
+  }
+}
+
+```
+---
+
+## **AG_test1.json**
+
+```java
+{
+  "input": {
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 17, "priority": 4, "quantum": 7},
+      {"name": "P2", "arrival": 2, "burst": 6, "priority": 7, "quantum": 9},
+      {"name": "P3", "arrival": 5, "burst": 11, "priority": 3, "quantum": 4},
+      {"name": "P4", "arrival": 15, "burst": 4, "priority": 6, "quantum": 6}
+    ]
+  },
+  "expectedOutput": {
+    "executionOrder": ["P1","P2","P3","P2","P1","P3","P4","P3","P1","P4"],
+    "processResults": [
+      {"name": "P1", "waitingTime": 19, "turnaroundTime": 36, "quantumHistory": [7,10,14,0]},
+      {"name": "P2", "waitingTime": 4, "turnaroundTime": 10, "quantumHistory": [9,12,0]},
+      {"name": "P3", "waitingTime": 10, "turnaroundTime": 21, "quantumHistory": [4,6,8,0]},
+      {"name": "P4", "waitingTime": 19, "turnaroundTime": 23, "quantumHistory": [6,8,0]}
+    ],
+    "averageWaitingTime": 13.0,
+    "averageTurnaroundTime": 22.5
+  }
+}
+
+```
+---
+
+## **AG_test2.json**
+
+```java
+{
+  "input": {
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 10, "priority": 3, "quantum": 4},
+      {"name": "P2", "arrival": 0, "burst": 8, "priority": 1, "quantum": 5},
+      {"name": "P3", "arrival": 0, "burst": 12, "priority": 2, "quantum": 6},
+      {"name": "P4", "arrival": 0, "burst": 6, "priority": 4, "quantum": 3},
+      {"name": "P5", "arrival": 0, "burst": 9, "priority": 5, "quantum": 4}
+    ]
+  },
+  "expectedOutput": {
+    "executionOrder": ["P1","P2","P3","P2","P4","P3","P4","P3","P5","P1","P4","P1","P5","P4","P5"],
+    "processResults": [
+      {"name": "P1", "waitingTime": 25, "turnaroundTime": 35, "quantumHistory": [4,6,8,0]},
+      {"name": "P2", "waitingTime": 3, "turnaroundTime": 11, "quantumHistory": [5,7,0]},
+      {"name": "P3", "waitingTime": 11, "turnaroundTime": 23, "quantumHistory": [6,8,12,0]},
+      {"name": "P4", "waitingTime": 33, "turnaroundTime": 39, "quantumHistory": [3,4,6,8,0]},
+      {"name": "P5", "waitingTime": 36, "turnaroundTime": 45, "quantumHistory": [4,6,8,0]}
+    ],
+    "averageWaitingTime": 21.6,
+    "averageTurnaroundTime": 30.6
+  }
+}
+
+```
+---
+
+## **AG_test3.json**
+
+```java
+{
+  "input": {
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 20, "priority": 5, "quantum": 8},
+      {"name": "P2", "arrival": 3, "burst": 4, "priority": 3, "quantum": 6},
+      {"name": "P3", "arrival": 6, "burst": 3, "priority": 4, "quantum": 5},
+      {"name": "P4", "arrival": 10, "burst": 2, "priority": 2, "quantum": 4},
+      {"name": "P5", "arrival": 15, "burst": 5, "priority": 6, "quantum": 7},
+      {"name": "P6", "arrival": 20, "burst": 6, "priority": 1, "quantum": 3}
+    ]
+  },
+  "expectedOutput": {
+    "executionOrder": ["P1","P2","P1","P4","P3","P1","P6","P5","P6","P1","P5"],
+    "processResults": [
+      {"name": "P1", "waitingTime": 17, "turnaroundTime": 37, "quantumHistory": [8,12,17,23,0]},
+      {"name": "P2", "waitingTime": 1, "turnaroundTime": 5, "quantumHistory": [6,0]},
+      {"name": "P3", "waitingTime": 7, "turnaroundTime": 10, "quantumHistory": [5,0]},
+      {"name": "P4", "waitingTime": 1, "turnaroundTime": 3, "quantumHistory": [4,0]},
+      {"name": "P5", "waitingTime": 20, "turnaroundTime": 25, "quantumHistory": [7,10,0]},
+      {"name": "P6", "waitingTime": 3, "turnaroundTime": 9, "quantumHistory": [3,5,0]}
+    ],
+    "averageWaitingTime": 8.17,
+    "averageTurnaroundTime": 14.83
+  }
+}
+
+
+```
+---
+
+## **AG_test4.json**
+
+```java
+{
+  "input": {
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 3, "priority": 2, "quantum": 10},
+      {"name": "P2", "arrival": 2, "burst": 4, "priority": 3, "quantum": 12},
+      {"name": "P3", "arrival": 5, "burst": 2, "priority": 1, "quantum": 8},
+      {"name": "P4", "arrival": 8, "burst": 5, "priority": 4, "quantum": 15},
+      {"name": "P5", "arrival": 12, "burst": 3, "priority": 5, "quantum": 9}
+    ]
+  },
+  "expectedOutput": {
+    "executionOrder": ["P1","P2","P3","P2","P4","P5"],
+    "processResults": [
+      {"name": "P1", "waitingTime": 0, "turnaroundTime": 3, "quantumHistory": [10,0]},
+      {"name": "P2", "waitingTime": 3, "turnaroundTime": 7, "quantumHistory": [12,17,0]},
+      {"name": "P3", "waitingTime": 1, "turnaroundTime": 3, "quantumHistory": [8,0]},
+      {"name": "P4", "waitingTime": 1, "turnaroundTime": 6, "quantumHistory": [15,0]},
+      {"name": "P5", "waitingTime": 2, "turnaroundTime": 5, "quantumHistory": [9,0]}
+    ],
+    "averageWaitingTime": 1.4,
+    "averageTurnaroundTime": 4.8
+  }
+}
+
+
+```
+---
+
+## **AG_test5.json**
+
+```java
+
+{
+  "input": {
+    "processes": [
+      {"name": "P1", "arrival": 0, "burst": 25, "priority": 3, "quantum": 5},
+      {"name": "P2", "arrival": 1, "burst": 18, "priority": 2, "quantum": 4},
+      {"name": "P3", "arrival": 3, "burst": 22, "priority": 4, "quantum": 6},
+      {"name": "P4", "arrival": 5, "burst": 15, "priority": 1, "quantum": 3},
+      {"name": "P5", "arrival": 8, "burst": 20, "priority": 5, "quantum": 7},
+      {"name": "P6", "arrival": 12, "burst": 12, "priority": 6, "quantum": 4}
+    ]
+  },
+  "expectedOutput": {
+    "executionOrder": ["P1","P2","P1","P4","P3","P4","P2","P4","P5","P2","P1","P2","P6","P1","P3","P1","P5","P3","P6","P3","P5","P6","P5","P6"],
+    "processResults": [
+      {"name": "P1","waitingTime":40,"turnaroundTime":65,"quantumHistory":[5,7,10,14,16,0]},
+      {"name": "P2","waitingTime":25,"turnaroundTime":43,"quantumHistory":[4,6,8,10,0]},
+      {"name": "P3","waitingTime":63,"turnaroundTime":85,"quantumHistory":[6,8,11,16,0]},
+      {"name": "P4","waitingTime":7,"turnaroundTime":22,"quantumHistory":[3,5,7,0]},
+      {"name": "P5","waitingTime":77,"turnaroundTime":97,"quantumHistory":[7,10,14,16,0]},
+      {"name": "P6","waitingTime":88,"turnaroundTime":100,"quantumHistory":[4,6,8,11,0]}
+    ],
+    "averageWaitingTime":50.0,
+    "averageTurnaroundTime":68.67
+  }
+}
+
+```
+---
+
+## **AG_test6.json**
+
+```java
+
+{
+  "input": {
+    "processes": [
+      {"name": "P1","arrival":0,"burst":14,"priority":4,"quantum":6},
+      {"name": "P2","arrival":4,"burst":9,"priority":2,"quantum":8},
+      {"name": "P3","arrival":7,"burst":16,"priority":5,"quantum":5},
+      {"name": "P4","arrival":10,"burst":7,"priority":1,"quantum":10},
+      {"name": "P5","arrival":15,"burst":11,"priority":3,"quantum":4},
+      {"name": "P6","arrival":20,"burst":5,"priority":6,"quantum":7},
+      {"name": "P7","arrival":25,"burst":8,"priority":7,"quantum":9}
+    ]
+  },
+  "expectedOutput": {
+    "executionOrder":["P1","P2","P1","P4","P3","P2","P1","P5","P6","P5","P6","P3","P5","P7","P1","P3","P7","P3","P7"],
+    "processResults":[
+      {"name":"P1","waitingTime":39,"turnaroundTime":53,"quantumHistory":[6,8,11,15,0]},
+      {"name":"P2","waitingTime":11,"turnaroundTime":20,"quantumHistory":[8,10,0]},
+      {"name":"P3","waitingTime":45,"turnaroundTime":61,"quantumHistory":[5,7,10,14,0]},
+      {"name":"P4","waitingTime":4,"turnaroundTime":11,"quantumHistory":[10,0]},
+      {"name":"P5","waitingTime":19,"turnaroundTime":30,"quantumHistory":[4,6,8,0]},
+      {"name":"P6","waitingTime":13,"turnaroundTime":18,"quantumHistory":[7,10,0]},
+      {"name":"P7","waitingTime":37,"turnaroundTime":45,"quantumHistory":[9,12,17,0]}
+    ],
+    "averageWaitingTime":24.0,
+    "averageTurnaroundTime":34.0
+  }
+}
+
+```
