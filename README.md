@@ -8,20 +8,44 @@ Everything is organized so integration by Person 5 will be smooth.
 
 ```
 src/
- ├── core/
- │    ├── Process.java ✓
- │    ├── SchedulerBase.java ✓
- │    ├── ExecutionSlice.java ✓
- │    ├── ResultFormatter.java
- │    └── GanttChartPrinter.java
- ├── schedulers/
- │    ├── SJFPreemptiveScheduler.java ✓
- │    ├── RoundRobinScheduler.java
- │    ├── PriorityPreemptiveScheduler.java
- │    └── AGScheduler.java
- ├── io/
- │    └── InputParser.java
- └── Main.java
+├── main/
+│   └── java/
+│       ├── core/
+│       │   ├── Process.java
+│       │   ├── SchedulerBase.java
+│       │   ├── ExecutionSlice.java
+│       │   ├── ResultFormatter.java
+│       │   └── GanttChartPrinter.java
+│       ├── schedulers/
+│       │   ├── SJFPreemptiveScheduler.java
+│       │   ├── RoundRobinScheduler.java
+│       │   ├── PriorityPreemptiveScheduler.java
+│       │   └── AGScheduler.java
+│       ├── io/
+│       │   └── InputParser.java
+│       └── Main.java
+└── test/
+    ├── java/
+    │   └── schedulers/
+    │       ├── SJFPreemptiveSchedulerTest.java
+    │       ├── RoundRobinSchedulerTest.java
+    │       ├── PriorityPreemptiveSchedulerTest.java
+    │       └── AGSchedulerTest.java
+    └── resources/
+        ├── otherschedulers/
+        │   ├── test_1.json
+        │   ├── test_2.json
+        │   ├── test_3.json
+        │   ├── test_4.json
+        │   ├── test_5.json
+        │   └── test_6.json
+        └── agscheduler/
+            ├── AG_test1.json
+            ├── AG_test2.json
+            ├── AG_test3.json
+            ├── AG_test4.json
+            ├── AG_test5.json
+            └── AG_test6.json
 ```
 
 ---
