@@ -152,27 +152,204 @@ package core;
 
 import java.util.List;
 
+/**
+ * Formats and displays scheduling results in a clear, organized manner
+ * Supports multiple output formats and detailed statistics
+ */
 public class ResultFormatter {
-
-    public static void printTable(List<Process> processes) {
-        System.out.println("---------------------------------------------------");
-        System.out.println("Process | Waiting Time | Turnaround Time | Completion");
-        System.out.println("---------------------------------------------------");
-
-        for (Process p : processes) {
-            System.out.printf("%-7s | %-12d | %-15d | %-10d\n",
-                    p.name, p.waitingTime, p.turnaroundTime, p.completionTime);
+    
+    /**
+     * Main method to print comprehensive scheduling results
+     * 
+     * @param schedulerName Name of the scheduler algorithm used
+     * @param processes List of processes with computed metrics
+     * @param executionOrder List of execution slices (Gantt chart data)
+     * @param contextSwitchTime Context switch duration used in scheduling
+     */
+    public static void printResults(String schedulerName,
+                                   List<Process> processes,
+                                   List<ExecutionSlice> executionOrder,
+                                   int contextSwitchTime) {
+        
+        printHeader(schedulerName);
+        printGanttChart(executionOrder);
+        printProcessMetrics(processes);
+        printStatistics(processes, executionOrder, contextSwitchTime);
+    }
+    
+    /**
+     * Prints a formatted header with scheduler name
+     */
+    private static void printHeader(String schedulerName) {
+        System.out.println("\n" + "═".repeat(60));
+        System.out.println("    CPU SCHEDULING SIMULATOR - " + schedulerName.toUpperCase());
+        System.out.println("═".repeat(60));
+    }
+    
+    /**
+     * Prints Gantt chart showing execution order
+     * Visual representation of process execution timeline
+     */
+    private static void printGanttChart(List<ExecutionSlice> executionOrder) {
+        System.out.println("\nGANTT CHART (Execution Timeline):");
+        System.out.println("─".repeat(60));
+        
+        if (executionOrder.isEmpty()) {
+            System.out.println("No execution recorded.");
+            return;
         }
-        System.out.println("---------------------------------------------------");
-
-        double totalWait = 0, totalTurn = 0;
-        for (Process p : processes) {
-            totalWait += p.waitingTime;
-            totalTurn += p.turnaroundTime;
+        
+        // Print process names in timeline format
+        System.out.print("│ ");
+        for (ExecutionSlice slice : executionOrder) {
+            String name = slice.processName;
+            int duration = slice.end - slice.start;
+            
+            // Special formatting for context switches and idle time
+            if (name.equals("CS")) {
+                System.out.print(" [CS] ");
+            } else if (name.equals("IDLE")) {
+                for (int i = 0; i < duration; i++) {
+                    System.out.print("░░");
+                }
+            } else {
+                for (int i = 0; i < duration; i++) {
+                    System.out.print(name);
+                }
+                System.out.print(" ");
+            }
         }
-
-        System.out.println("Average Waiting Time = " + totalWait / processes.size());
-        System.out.println("Average Turnaround Time = " + totalTurn / processes.size());
+        System.out.println("│");
+        
+        // Print time markers below Gantt chart
+        System.out.print("0");
+        for (ExecutionSlice slice : executionOrder) {
+            int time = slice.end;
+            int spaces = (slice.end - slice.start) * 2 - 1;
+            if (slice.processName.equals("CS")) {
+                spaces = 4;
+            }
+            System.out.printf("%" + (spaces + 1) + "d", time);
+        }
+        System.out.println("\n" + "─".repeat(60));
+    }
+    
+    /**
+     * Prints detailed metrics table for each process
+     * Shows arrival time, burst time, completion time, waiting time, and turnaround time
+     */
+    private static void printProcessMetrics(List<Process> processes) {
+        System.out.println("\nPROCESS METRICS TABLE:");
+        System.out.println("┌────────┬─────────┬───────┬────────────┬──────────────┬─────────────┐");
+        System.out.println("│ Process│ Arrival │ Burst │ Completion │ Waiting Time │ Turnaround  │");
+        System.out.println("├────────┼─────────┼───────┼────────────┼──────────────┼─────────────┤");
+        
+        int totalWaitingTime = 0;
+        int totalTurnaroundTime = 0;
+        
+        for (Process p : processes) {
+            System.out.printf("│ %-6s │ %-7d │ %-5d │ %-10d │ %-12d │ %-11d │\n",
+                p.getName(),
+                p.getArrivalTime(),
+                p.getBurstTime(),
+                p.getCompletionTime(),
+                p.getWaitingTime(),
+                p.getTurnaroundTime());
+            
+            totalWaitingTime += p.getWaitingTime();
+            totalTurnaroundTime += p.getTurnaroundTime();
+        }
+        
+        // Calculate averages
+        double avgWaitingTime = (double) totalWaitingTime / processes.size();
+        double avgTurnaroundTime = (double) totalTurnaroundTime / processes.size();
+        
+        System.out.println("├────────┼─────────┼───────┼────────────┼──────────────┼─────────────┤");
+        System.out.printf("│ AVERAGE│         │       │            │ %-12.2f │ %-11.2f │\n",
+            avgWaitingTime, avgTurnaroundTime);
+        System.out.println("└────────┴─────────┴───────┴────────────┴──────────────┴─────────────┘");
+    }
+    
+    /**
+     * Prints summary statistics including context switch analysis
+     */
+    private static void printStatistics(List<Process> processes,
+                                       List<ExecutionSlice> executionOrder,
+                                       int contextSwitchTime) {
+        System.out.println("\nPERFORMANCE STATISTICS:");
+        System.out.println("┌──────────────────────────────────────────┬──────────────┐");
+        
+        // Calculate statistics
+        long contextSwitchCount = countContextSwitches(executionOrder);
+        int totalContextSwitchTime = (int) contextSwitchCount * contextSwitchTime;
+        double cpuUtilization = calculateCpuUtilization(executionOrder);
+        double throughput = calculateThroughput(processes, executionOrder);
+        
+        // Print each statistic
+        System.out.printf("│ %-40s │ %-12d │\n", 
+            "Total Processes", processes.size());
+        
+        System.out.printf("│ %-40s │ %-12.2f │\n",
+            "Average Waiting Time", 
+            processes.stream().mapToInt(Process::getWaitingTime).average().orElse(0));
+        
+        System.out.printf("│ %-40s │ %-12.2f │\n",
+            "Average Turnaround Time",
+            processes.stream().mapToInt(Process::getTurnaroundTime).average().orElse(0));
+        
+        System.out.printf("│ %-40s │ %-12d │\n",
+            "Context Switches", contextSwitchCount);
+        
+        System.out.printf("│ %-40s │ %-12d │\n",
+            "Total Context Switch Time", totalContextSwitchTime);
+        
+        System.out.printf("│ %-40s │ %-11.1f%% │\n",
+            "CPU Utilization", cpuUtilization);
+        
+        System.out.printf("│ %-40s │ %-12.2f │\n",
+            "Throughput (processes/100 units)", throughput);
+        
+        System.out.println("└──────────────────────────────────────────┴──────────────┘");
+    }
+    
+    /**
+     * Counts number of context switches in execution order
+     */
+    private static long countContextSwitches(List<ExecutionSlice> executionOrder) {
+        return executionOrder.stream()
+            .filter(slice -> slice.processName.equals("CS"))
+            .count();
+    }
+    
+    /**
+     * Calculates CPU utilization percentage
+     * (Useful CPU time / Total time) * 100
+     */
+    private static double calculateCpuUtilization(List<ExecutionSlice> executionOrder) {
+        if (executionOrder.isEmpty()) return 0.0;
+        
+        int totalTime = executionOrder.get(executionOrder.size() - 1).end;
+        if (totalTime == 0) return 0.0;
+        
+        int usefulTime = executionOrder.stream()
+            .filter(slice -> !slice.processName.equals("IDLE") && !slice.processName.equals("CS"))
+            .mapToInt(slice -> slice.end - slice.start)
+            .sum();
+        
+        return ((double) usefulTime / totalTime) * 100;
+    }
+    
+    /**
+     * Calculates throughput: processes completed per 100 time units
+     */
+    private static double calculateThroughput(List<Process> processes, 
+                                             List<ExecutionSlice> executionOrder) {
+        if (executionOrder.isEmpty()) return 0.0;
+        
+        int totalTime = executionOrder.get(executionOrder.size() - 1).end;
+        if (totalTime == 0) return 0.0;
+        
+        return ((double) processes.size() * 100) / totalTime;
     }
 }
 ```
@@ -181,6 +358,7 @@ public class ResultFormatter {
 
 ## **core/GanttChartPrinter.java** (Person 4)
 
+not implemented yet
 ```java
 package core;
 
@@ -329,6 +507,8 @@ public class SJFPreemptiveScheduler extends SchedulerBase {
 
 ## **schedulers/RoundRobinScheduler.java** (Person 2)
 
+not implemented yet
+
 ```java
 package schedulers;
 
@@ -359,22 +539,283 @@ public class RoundRobinScheduler extends SchedulerBase {
 ```java
 package schedulers;
 
-import core.*;
+import core.Process;
+import core.SchedulerBase;
+import core.ExecutionSlice;
+
 import java.util.*;
 
+/**
+ * Implementation of Preemptive Priority Scheduling with Aging
+ * Lower priority number = higher priority (1 > 2)
+ * Preemptive: running process can be interrupted if a higher priority process arrives
+ * Aging: increases priority of waiting processes to prevent starvation
+ */
 public class PriorityPreemptiveScheduler extends SchedulerBase {
 
+    // Aging interval: apply priority boost every X time units
+    private static final int AGING_INTERVAL = 5;
+
     @Override
-    public void run(List<Process> processes, int contextSwitch) {
-        slices = new ArrayList<>();
+    public void run(List<Process> processes, int contextSwitchTime, int rrQuantum) {
+        // Create working copies to avoid modifying original processes
+        List<Process> workProcesses = createWorkingCopies(processes);
 
-        // TODO:
-        // - Use priority queue based on priority
-        // - Aging must be applied
-        // - Preempt when a higher-priority process arrives
-        // - Add context switching
+        // Sort processes by arrival time for efficient arrival handling
+        List<Process> sortedByArrival = new ArrayList<>(workProcesses);
+        sortedByArrival.sort(Comparator.comparingInt(Process::getArrivalTime));
 
-        computeMetrics(processes);
+        // Ready queue: prioritized by (priority, arrival time)
+        // Lower priority number = higher priority
+        PriorityQueue<Process> readyQueue = createReadyQueue();
+
+        // Scheduling state tracking
+        SchedulingState state = new SchedulingState(contextSwitchTime);
+
+        // Map to track waiting time for aging
+        Map<Process, Integer> waitingTimeMap = new HashMap<>();
+
+        // Main scheduling loop
+        while (!allProcessesCompleted(workProcesses)) {
+            // Add newly arrived processes to ready queue
+            addArrivedProcesses(sortedByArrival, readyQueue, waitingTimeMap, state.currentTime);
+
+            // Apply aging periodically to prevent starvation
+            if (shouldApplyAging(state.currentTime)) {
+                applyAgingToQueue(readyQueue, waitingTimeMap);
+            }
+
+            // Check for preemption: if higher priority process is in ready queue
+            checkAndHandlePreemption(readyQueue, state, waitingTimeMap);
+
+            // If no process is running, select one from ready queue
+            if (state.currentProcess == null && !readyQueue.isEmpty()) {
+                selectNewProcess(readyQueue, state, contextSwitchTime);
+                // Add context switch if not first execution
+                if (!state.isFirstExecution) {
+                    addContextSwitch(state, contextSwitchTime);
+                }
+                state.isFirstExecution = false;
+            }
+
+            // Handle idle time if no process is ready
+            if (state.currentProcess == null && hasPendingProcesses(sortedByArrival, state.currentTime)) {
+                handleIdleTime(sortedByArrival, state);
+                continue;
+            }
+
+            // If no process to run (should not happen in valid state)
+            if (state.currentProcess == null) {
+                state.currentTime++;
+                continue;
+            }
+
+            // Execute current process for 1 time unit
+            executeProcess(state, waitingTimeMap, readyQueue);
+        }
+
+        // Calculate final metrics (waiting time, turnaround time)
+        computeMetrics(workProcesses);
+    }
+
+    // ============ HELPER METHODS ============
+
+    /**
+     * Creates working copies of processes to avoid modifying originals
+     */
+    private List<Process> createWorkingCopies(List<Process> processes) {
+        List<Process> copies = new ArrayList<>();
+        for (Process p : processes) {
+            copies.add(p.copy());
+        }
+        return copies;
+    }
+
+    /**
+     * Creates a priority queue for ready processes
+     * Priority order: lower priority number first, then earlier arrival time
+     */
+    private PriorityQueue<Process> createReadyQueue() {
+        return new PriorityQueue<>(
+                Comparator.comparingInt(Process::getPriority)
+                        .thenComparingInt(Process::getArrivalTime)
+        );
+    }
+
+    /**
+     * Adds processes that have arrived by current time to ready queue
+     */
+    private void addArrivedProcesses(List<Process> sortedProcesses,
+                                     PriorityQueue<Process> readyQueue,
+                                     Map<Process, Integer> waitingMap,
+                                     int currentTime) {
+        int index = 0;
+        while (index < sortedProcesses.size() &&
+                sortedProcesses.get(index).getArrivalTime() <= currentTime &&
+                sortedProcesses.get(index).getRemainingTime() > 0) {
+            Process p = sortedProcesses.get(index);
+            if (!readyQueue.contains(p)) {
+                readyQueue.add(p);
+                waitingMap.putIfAbsent(p, 0);
+            }
+            index++;
+        }
+    }
+
+    /**
+     * Checks if aging should be applied at current time
+     */
+    private boolean shouldApplyAging(int currentTime) {
+        return currentTime > 0 && currentTime % AGING_INTERVAL == 0;
+    }
+
+    /**
+     * Applies aging to processes in ready queue
+     * Increases priority (lowers priority number) of waiting processes
+     */
+    private void applyAgingToQueue(PriorityQueue<Process> readyQueue,
+                                   Map<Process, Integer> waitingMap) {
+        List<Process> tempList = new ArrayList<>();
+
+        // Remove all processes to modify priorities
+        while (!readyQueue.isEmpty()) {
+            tempList.add(readyQueue.poll());
+        }
+
+        // Apply aging to each process
+        for (Process p : tempList) {
+            int waitTime = waitingMap.getOrDefault(p, 0);
+            if (waitTime >= AGING_INTERVAL) {
+                // Increase priority (lower number = higher priority)
+                // Ensure priority doesn't go below 0
+                int newPriority = Math.max(0, p.getPriority() - 1);
+                p.setPriority(newPriority);
+
+                // Reset wait counter for this aging cycle
+                waitingMap.put(p, 0);
+            }
+        }
+
+        // Add processes back with updated priorities
+        readyQueue.addAll(tempList);
+    }
+
+    /**
+     * Checks for and handles preemption
+     */
+    private void checkAndHandlePreemption(PriorityQueue<Process> readyQueue,
+                                          SchedulingState state,
+                                          Map<Process, Integer> waitingMap) {
+        if (state.currentProcess != null && !readyQueue.isEmpty()) {
+            Process highestPriority = readyQueue.peek();
+            if (highestPriority.getPriority() < state.currentProcess.getPriority()) {
+                // Preempt current process
+                readyQueue.add(state.currentProcess);
+                waitingMap.put(state.currentProcess, 0);
+                state.currentProcess = null;
+            }
+        }
+    }
+
+    /**
+     * Selects new process from ready queue
+     */
+    private void selectNewProcess(PriorityQueue<Process> readyQueue,
+                                  SchedulingState state,
+                                  int contextSwitchTime) {
+        state.currentProcess = readyQueue.poll();
+    }
+
+    /**
+     * Adds context switch to execution timeline
+     */
+    private void addContextSwitch(SchedulingState state, int contextSwitchTime) {
+        int csStart = state.currentTime;
+        state.currentTime += contextSwitchTime;
+        addSlice("CS", csStart, state.currentTime);
+    }
+
+    /**
+     * Handles idle time when no process is ready
+     */
+    private void handleIdleTime(List<Process> sortedProcesses, SchedulingState state) {
+        int idleStart = state.currentTime;
+        int nextArrival = sortedProcesses.stream()
+                .filter(p -> p.getArrivalTime() > state.currentTime)
+                .mapToInt(Process::getArrivalTime)
+                .min()
+                .orElse(state.currentTime + 1);
+
+        state.currentTime = nextArrival;
+        if (idleStart < state.currentTime) {
+            addSlice("IDLE", idleStart, state.currentTime);
+        }
+    }
+
+    /**
+     * Executes current process for 1 time unit
+     */
+    private void executeProcess(SchedulingState state,
+                                Map<Process, Integer> waitingMap,
+                                PriorityQueue<Process> readyQueue) {
+        int startTime = state.currentTime;
+        state.currentTime++;
+
+        // Record execution slice
+        addSlice(state.currentProcess.getName(), startTime, state.currentTime);
+
+        // Update process state
+        state.currentProcess.decreaseRemaining(1);
+
+        // Update waiting times for other processes in ready queue
+        updateWaitingTimes(readyQueue, waitingMap, 1);
+
+        // Check if process has completed
+        if (state.currentProcess.getRemainingTime() == 0) {
+            state.currentProcess.setCompletionTime(state.currentTime);
+            waitingMap.remove(state.currentProcess);
+            state.currentProcess = null;
+        }
+    }
+
+    /**
+     * Updates waiting times for processes in ready queue
+     */
+    private void updateWaitingTimes(PriorityQueue<Process> readyQueue,
+                                    Map<Process, Integer> waitingMap,
+                                    int elapsedTime) {
+        for (Process p : readyQueue) {
+            waitingMap.put(p, waitingMap.getOrDefault(p, 0) + elapsedTime);
+        }
+    }
+
+    /**
+     * Checks if all processes have completed
+     */
+    private boolean allProcessesCompleted(List<Process> processes) {
+        return processes.stream().allMatch(p -> p.getRemainingTime() == 0);
+    }
+
+    /**
+     * Checks if there are pending processes that haven't arrived yet
+     */
+    private boolean hasPendingProcesses(List<Process> sortedProcesses, int currentTime) {
+        return sortedProcesses.stream()
+                .anyMatch(p -> p.getArrivalTime() > currentTime && p.getRemainingTime() > 0);
+    }
+
+    /**
+     * Internal class to track scheduling state
+     */
+    private static class SchedulingState {
+        int currentTime = 0;
+        Process currentProcess = null;
+        boolean isFirstExecution = true;
+        final int contextSwitchTime;
+
+        SchedulingState(int contextSwitchTime) {
+            this.contextSwitchTime = contextSwitchTime;
+        }
     }
 }
 ```
@@ -387,25 +828,227 @@ public class PriorityPreemptiveScheduler extends SchedulerBase {
 package schedulers;
 
 import core.*;
+import core.Process;
+
 import java.util.*;
 
 public class AGScheduler extends SchedulerBase {
 
-    @Override
-    public void run(List<Process> processes, int contextSwitch) {
+    //keepin track of the quantum history of each process
+    private Map<String, List<Integer>> quantumHistory = new LinkedHashMap<>();
+    
+    
+    public void run(List<Process> processes, int contextSwitchTime, int rrQuantum) {
+        // Initialize the slices list for recording execution intervals
         slices = new ArrayList<>();
 
-        // TODO: Implement AG scheduling:
-        // Phase 1: FCFS for 25%
-        // Phase 2: Non-preemptive priority for next 25%
-        // Phase 3: Preemptive SJF for remaining
+        
+        // Create copies of all processes to work with, avoiding modification of the original inputs
+        List<Process> working = new ArrayList<>();
+        for (Process p : processes) {
+            Process copy = p.copy();
+            working.add(copy);
+            quantumHistory.put(copy.getName(), new ArrayList<>());
+            quantumHistory.get(copy.getName()).add(copy.getQuantum());
+        }
 
-        // Handle 4 quantum update rules
-        // Track quantum history for each process
+        //Sort processes by arrival time for correct initial scheduling
+        working.sort(Comparator.comparingInt(Process::getArrivalTime));
 
-        computeMetrics(processes);
+        //Ready Queue
+        Queue<Process> readyQueue = new LinkedList<>();
+        int time = 0;  // Tracks current cpu time
+        int index = 0; // Index to traverse the sorted process list
+        boolean first = true; // Flag to handle first proces..no context switch initiallyy
+
+        while (true) {
+            //Check if all processes are done.. if yes, terminate the scheduling loop
+            boolean allDone = true;
+            for (Process p : working) {
+                if (p.getRemainingTime() > 0) {
+                    allDone = false;
+                    break;
+                }
+            }
+            if (allDone) break;
+
+            //Add newly arrived processes to the ready queue
+            while (index < working.size() && working.get(index).getArrivalTime() <= time) {
+                if (working.get(index).getRemainingTime() > 0) {
+                    readyQueue.add(working.get(index));
+                }
+                index++;
+            }
+
+            //Handle idle CPU when no processes are ready
+            if (readyQueue.isEmpty()) {
+                if (index < working.size()) {
+                    addSlice("IDLE", time, working.get(index).getArrivalTime());
+                    time = working.get(index).getArrivalTime();
+                }
+                continue;
+            }
+
+            //get the next process using FCFS from the ready queue
+            Process current = readyQueue.poll();
+
+            //Applying context switch time if not the first process
+            if (!first && contextSwitchTime > 0) {
+                addSlice("CS", time, time + contextSwitchTime);
+                time += contextSwitchTime;
+
+                //Add any newly arrived processes during the context switch
+                while (index < working.size() && working.get(index).getArrivalTime() <= time) {
+                    if (working.get(index).getRemainingTime() > 0) {
+                        readyQueue.add(working.get(index));
+                    }
+                    index++;
+                }
+            }
+            first = false;
+
+            int quantum = current.getQuantum(); // Current process quantum
+            int executed = 0; //Trackinng how much of the quantum has been executed
+
+            //Compute phase lengths for FCFS, Priority, and SJF
+            int fcfsLen = (int)Math.ceil(quantum * 0.25);
+            int prioLen = (int)Math.ceil(quantum * 0.25);
+            if (fcfsLen + prioLen > quantum) prioLen = quantum - fcfsLen;
+            int sjfLen = quantum - (fcfsLen + prioLen);
+
+            boolean preempted = false; //Flag to track if the process was preempted
+
+            //FCFS Phase 
+            for (int i = 0; i < fcfsLen && current.getRemainingTime() > 0; i++) {
+                addSlice(current.getName(), time, time + 1); // Record execution slice
+                current.decreaseRemaining(1); // Reduce remaining burst time
+                time++;
+                executed++;
+
+                //Adding newly arrived processes during FCFS execution
+                while (index < working.size() && working.get(index).getArrivalTime() <= time) {
+                    if (working.get(index).getRemainingTime() > 0) {
+                        readyQueue.add(working.get(index));
+                    }
+                    index++;
+                }
+            }
+
+            //if process finished during FCFS so update its quantum and completion time
+            if (current.getRemainingTime() == 0) {
+                current.setCompletionTime(time);
+                current.setQuantum(0);
+                quantumHistory.get(current.getName()).add(0);
+                continue;
+            }
+
+            //Priority Phase 
+            for (int i = 0; i < prioLen && current.getRemainingTime() > 0 && !preempted; i++) {
+                addSlice(current.getName(), time, time + 1);
+                current.decreaseRemaining(1);
+                time++;
+                executed++;
+
+                //add newly arrived processes during Priority execution
+                while (index < working.size() && working.get(index).getArrivalTime() <= time) {
+                    if (working.get(index).getRemainingTime() > 0) {
+                        readyQueue.add(working.get(index));
+                    }
+                    index++;
+                }
+
+                //Preempt if a higher priority process is ready
+                for (Process p : readyQueue) {
+                    if (p.getPriority() < current.getPriority()) {
+                        preempted = true;
+                        int remainingQuantum = quantum - executed;
+                        int newQuantum = current.getQuantum() + (int)Math.ceil(remainingQuantum / 2.0);
+                        current.setQuantum(newQuantum);
+                        quantumHistory.get(current.getName()).add(newQuantum);
+                        readyQueue.add(current);
+                        break;
+                    }
+                }
+            }
+
+            if (preempted) continue;
+
+            if (current.getRemainingTime() == 0) {
+                current.setCompletionTime(time);
+                current.setQuantum(0);
+                quantumHistory.get(current.getName()).add(0);
+                continue;
+            }
+
+            //SJF Phase 
+            for (int i = 0; i < sjfLen && current.getRemainingTime() > 0 && !preempted; i++) {
+                addSlice(current.getName(), time, time + 1);
+                current.decreaseRemaining(1);
+                time++;
+                executed++;
+
+                // Adding newly arrived processses during SJF execution
+                while (index < working.size() && working.get(index).getArrivalTime() <= time) {
+                    if (working.get(index).getRemainingTime() > 0) {
+                        readyQueue.add(working.get(index));
+                    }
+                    index++;
+                }
+
+                //Preempt if a shorter job is ready in the readyQueue
+                for (Process p : readyQueue) {
+                    if (p.getRemainingTime() < current.getRemainingTime()) {
+                        preempted = true;
+                        int remainingQuantum = quantum - executed;
+                        int newQuantum = current.getQuantum() + remainingQuantum;
+                        current.setQuantum(newQuantum);
+                        quantumHistory.get(current.getName()).add(newQuantum);
+                        readyQueue.add(current);
+                        break;
+                    }
+                }
+            }
+
+            if (preempted) continue;
+
+            //After quantum finished.. 4th case 
+            if (current.getRemainingTime() == 0) {
+                current.setCompletionTime(time);
+                current.setQuantum(0);
+                quantumHistory.get(current.getName()).add(0);
+            } else {
+                int newQuantum = current.getQuantum() + 2; // Increase quantum if process used all its quantum
+                current.setQuantum(newQuantum);
+                quantumHistory.get(current.getName()).add(newQuantum);
+                readyQueue.add(current);
+            }
+        }
+
+        //Compute waiting time ,turnaround time, and other metrics for all processes
+        computeMetrics(working);
     }
+
+    //Getter for quantum history
+    public Map<String, List<Integer>> getQuantumHistory() {
+        return quantumHistory;
+    }
+
+    //method to print quantum history of all processes in a good op format
+    public void printQuantumHistory() {
+        System.out.println("\nQuantum History:");
+        for (String name : quantumHistory.keySet()) {
+            List<Integer> hist = quantumHistory.get(name);
+            System.out.print(name + " Quantum: ");
+            for (int i = 0; i < hist.size(); i++) {
+                System.out.print(hist.get(i));
+                if (i < hist.size() - 1) System.out.print(" -> ");
+            }
+            System.out.println();
+        }
+    }
+
 }
+
 ```
 
 ---
@@ -415,6 +1058,8 @@ public class AGScheduler extends SchedulerBase {
 ---
 
 ## **io/InputParser.java**
+
+not implemented yet
 
 ```java
 package io;
@@ -463,6 +1108,8 @@ public class InputParser {
 ---
 
 ## **Main.java**
+
+not implemented yet
 
 ```java
 import schedulers.*;
