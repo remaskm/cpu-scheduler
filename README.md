@@ -14,15 +14,12 @@ src/
 │       │   ├── Process.java 
 │       │   ├── SchedulerBase.java
 │       │   ├── ExecutionSlice.java
-│       │   └── ResultFormatter.java
-│       ├── schedulers/
-│       │   ├── SJFPreemptiveScheduler.java
-│       │   ├── RoundRobinScheduler.java
-│       │   ├── PriorityPreemptiveScheduler.java
-│       │   └── AGScheduler.java
-│       ├── io/
-│       │   └── InputParser.java
-│       └── Main.java
+│       │   └── SchedulingResult.java
+│       └── schedulers/
+│           ├── SJFPreemptiveScheduler.java
+│           ├── RoundRobinScheduler.java
+│           ├── PriorityPreemptiveScheduler.java
+│           └── AGScheduler.java
 └── test/
     ├── java/
     │   ├── schedulers/
@@ -31,7 +28,7 @@ src/
     │   |   ├── PriorityPreemptiveSchedulerTest.java
     │   |   └── AGSchedulerTest.java
     |   └── utils/
-    |        └── JsonTestHelper.java
+    |        └── TestUtils.java
     └── resources/
         ├── otherschedulers/
         │   ├── test_1.json
@@ -170,213 +167,13 @@ public class ExecutionSlice {
 
 ---
 
-## **core/ResultFormatter.java** (Person 3)
+## **core/SchedulingResult.java** (Person 3)
+
+not implemented yet
 
 ```java
-package core;
 
-import java.util.List;
-
-/**
- * Formats and displays scheduling results in a clear, organized manner
- * Supports multiple output formats and detailed statistics
- */
-public class ResultFormatter {
     
-    /**
-     * Main method to print comprehensive scheduling results
-     * 
-     * @param schedulerName Name of the scheduler algorithm used
-     * @param processes List of processes with computed metrics
-     * @param executionOrder List of execution slices (Gantt chart data)
-     * @param contextSwitchTime Context switch duration used in scheduling
-     */
-    public static void printResults(String schedulerName,
-                                   List<Process> processes,
-                                   List<ExecutionSlice> executionOrder,
-                                   int contextSwitchTime) {
-        
-        printHeader(schedulerName);
-        printGanttChart(executionOrder);
-        printProcessMetrics(processes);
-        printStatistics(processes, executionOrder, contextSwitchTime);
-    }
-    
-    /**
-     * Prints a formatted header with scheduler name
-     */
-    private static void printHeader(String schedulerName) {
-        System.out.println("\n" + "═".repeat(60));
-        System.out.println("    CPU SCHEDULING SIMULATOR - " + schedulerName.toUpperCase());
-        System.out.println("═".repeat(60));
-    }
-    
-    /**
-     * Prints Gantt chart showing execution order
-     * Visual representation of process execution timeline
-     */
-    private static void printGanttChart(List<ExecutionSlice> executionOrder) {
-        System.out.println("\nGANTT CHART (Execution Timeline):");
-        System.out.println("─".repeat(60));
-        
-        if (executionOrder.isEmpty()) {
-            System.out.println("No execution recorded.");
-            return;
-        }
-        
-        // Print process names in timeline format
-        System.out.print("│ ");
-        for (ExecutionSlice slice : executionOrder) {
-            String name = slice.processName;
-            int duration = slice.end - slice.start;
-            
-            // Special formatting for context switches and idle time
-            if (name.equals("CS")) {
-                System.out.print(" [CS] ");
-            } else if (name.equals("IDLE")) {
-                for (int i = 0; i < duration; i++) {
-                    System.out.print("░░");
-                }
-            } else {
-                for (int i = 0; i < duration; i++) {
-                    System.out.print(name);
-                }
-                System.out.print(" ");
-            }
-        }
-        System.out.println("│");
-        
-        // Print time markers below Gantt chart
-        System.out.print("0");
-        for (ExecutionSlice slice : executionOrder) {
-            int time = slice.end;
-            int spaces = (slice.end - slice.start) * 2 - 1;
-            if (slice.processName.equals("CS")) {
-                spaces = 4;
-            }
-            System.out.printf("%" + (spaces + 1) + "d", time);
-        }
-        System.out.println("\n" + "─".repeat(60));
-    }
-    
-    /**
-     * Prints detailed metrics table for each process
-     * Shows arrival time, burst time, completion time, waiting time, and turnaround time
-     */
-    private static void printProcessMetrics(List<Process> processes) {
-        System.out.println("\nPROCESS METRICS TABLE:");
-        System.out.println("┌────────┬─────────┬───────┬────────────┬──────────────┬─────────────┐");
-        System.out.println("│ Process│ Arrival │ Burst │ Completion │ Waiting Time │ Turnaround  │");
-        System.out.println("├────────┼─────────┼───────┼────────────┼──────────────┼─────────────┤");
-        
-        int totalWaitingTime = 0;
-        int totalTurnaroundTime = 0;
-        
-        for (Process p : processes) {
-            System.out.printf("│ %-6s │ %-7d │ %-5d │ %-10d │ %-12d │ %-11d │\n",
-                p.getName(),
-                p.getArrivalTime(),
-                p.getBurstTime(),
-                p.getCompletionTime(),
-                p.getWaitingTime(),
-                p.getTurnaroundTime());
-            
-            totalWaitingTime += p.getWaitingTime();
-            totalTurnaroundTime += p.getTurnaroundTime();
-        }
-        
-        // Calculate averages
-        double avgWaitingTime = (double) totalWaitingTime / processes.size();
-        double avgTurnaroundTime = (double) totalTurnaroundTime / processes.size();
-        
-        System.out.println("├────────┼─────────┼───────┼────────────┼──────────────┼─────────────┤");
-        System.out.printf("│ AVERAGE│         │       │            │ %-12.2f │ %-11.2f │\n",
-            avgWaitingTime, avgTurnaroundTime);
-        System.out.println("└────────┴─────────┴───────┴────────────┴──────────────┴─────────────┘");
-    }
-    
-    /**
-     * Prints summary statistics including context switch analysis
-     */
-    private static void printStatistics(List<Process> processes,
-                                       List<ExecutionSlice> executionOrder,
-                                       int contextSwitchTime) {
-        System.out.println("\nPERFORMANCE STATISTICS:");
-        System.out.println("┌──────────────────────────────────────────┬──────────────┐");
-        
-        // Calculate statistics
-        long contextSwitchCount = countContextSwitches(executionOrder);
-        int totalContextSwitchTime = (int) contextSwitchCount * contextSwitchTime;
-        double cpuUtilization = calculateCpuUtilization(executionOrder);
-        double throughput = calculateThroughput(processes, executionOrder);
-        
-        // Print each statistic
-        System.out.printf("│ %-40s │ %-12d │\n", 
-            "Total Processes", processes.size());
-        
-        System.out.printf("│ %-40s │ %-12.2f │\n",
-            "Average Waiting Time", 
-            processes.stream().mapToInt(Process::getWaitingTime).average().orElse(0));
-        
-        System.out.printf("│ %-40s │ %-12.2f │\n",
-            "Average Turnaround Time",
-            processes.stream().mapToInt(Process::getTurnaroundTime).average().orElse(0));
-        
-        System.out.printf("│ %-40s │ %-12d │\n",
-            "Context Switches", contextSwitchCount);
-        
-        System.out.printf("│ %-40s │ %-12d │\n",
-            "Total Context Switch Time", totalContextSwitchTime);
-        
-        System.out.printf("│ %-40s │ %-11.1f%% │\n",
-            "CPU Utilization", cpuUtilization);
-        
-        System.out.printf("│ %-40s │ %-12.2f │\n",
-            "Throughput (processes/100 units)", throughput);
-        
-        System.out.println("└──────────────────────────────────────────┴──────────────┘");
-    }
-    
-    /**
-     * Counts number of context switches in execution order
-     */
-    private static long countContextSwitches(List<ExecutionSlice> executionOrder) {
-        return executionOrder.stream()
-            .filter(slice -> slice.processName.equals("CS"))
-            .count();
-    }
-    
-    /**
-     * Calculates CPU utilization percentage
-     * (Useful CPU time / Total time) * 100
-     */
-    private static double calculateCpuUtilization(List<ExecutionSlice> executionOrder) {
-        if (executionOrder.isEmpty()) return 0.0;
-        
-        int totalTime = executionOrder.get(executionOrder.size() - 1).end;
-        if (totalTime == 0) return 0.0;
-        
-        int usefulTime = executionOrder.stream()
-            .filter(slice -> !slice.processName.equals("IDLE") && !slice.processName.equals("CS"))
-            .mapToInt(slice -> slice.end - slice.start)
-            .sum();
-        
-        return ((double) usefulTime / totalTime) * 100;
-    }
-    
-    /**
-     * Calculates throughput: processes completed per 100 time units
-     */
-    private static double calculateThroughput(List<Process> processes, 
-                                             List<ExecutionSlice> executionOrder) {
-        if (executionOrder.isEmpty()) return 0.0;
-        
-        int totalTime = executionOrder.get(executionOrder.size() - 1).end;
-        if (totalTime == 0) return 0.0;
-        
-        return ((double) processes.size() * 100) / totalTime;
-    }
-}
 ```
 
 ---
@@ -515,18 +312,6 @@ import java.util.*;
 
 public class RoundRobinScheduler extends SchedulerBase {
 
-    @Override
-    public void run(List<Process> processes, int contextSwitch) {
-        slices = new ArrayList<>();
-
-        // TODO: implement RR with quantum from user input
-        // Use a queue
-        // Preempt every quantum
-        // Add context switch time
-        // Track execution slices
-
-        computeMetrics(processes);
-    }
 }
 ```
 
@@ -534,7 +319,6 @@ public class RoundRobinScheduler extends SchedulerBase {
 
 ## **schedulers/PriorityPreemptiveScheduler.java** (Person 3)
 
-recommended implementation
 
 ```java
 package schedulers;
@@ -1053,167 +837,31 @@ public class AGScheduler extends SchedulerBase {
 
 ---
 
-# **3. IO Module (Person 2)**
+
+# **3. Integration File (Person 5)**
 
 ---
 
-## **io/InputParser.java**
+## **TestUtils.java**
 
 not implemented yet
 
 ```java
-package io;
 
-import core.Process;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-
-public class InputParser {
-
-    /**
-     * Reads input exactly as specified in the assignment:
-     * 1. Number of processes
-     * 2. Round Robin Time Quantum
-     * 3. Context switching time
-     * 4. For each process: Name, Arrival Time, Burst Time, Priority
-     * 
-     * Note: Quantum is NOT read from user input — it's only used internally for AG Scheduling
-     */
-    public static InputData readInput() {
-        Scanner sc = new Scanner(System.in);
-
-        System.out.print("Enter number of processes: ");
-        int n = sc.nextInt();
-
-        System.out.print("Enter Round Robin Time Quantum: ");
-        int rrQuantum = sc.nextInt();
-
-        System.out.print("Enter context switching time: ");
-        int contextSwitch = sc.nextInt();
-
-        List<Process> processes = new ArrayList<>();
-
-        for (int i = 0; i < n; i++) {
-            System.out.println("\nProcess " + (i + 1));
-            System.out.print("Name: ");
-            String name = sc.next();
-
-            System.out.print("Arrival Time: ");
-            int arrival = sc.nextInt();
-
-            System.out.print("Burst Time: ");
-            int burst = sc.nextInt();
-
-            System.out.print("Priority: ");
-            int priority = sc.nextInt();
-
-            // Quantum is NOT read from user — default to 0, AG will manage it
-            processes.add(new Process(name, arrival, burst, priority, 0));
-        }
-
-        return new InputData(processes, rrQuantum, contextSwitch);
-    }
-
-    // Wrapper class to return all input data together
-    public static class InputData {
-        public final List<Process> processes;
-        public final int rrQuantum;
-        public final int contextSwitchTime;
-
-        public InputData(List<Process> processes, int rrQuantum, int contextSwitchTime) {
-            this.processes = processes;
-            this.rrQuantum = rrQuantum;
-            this.contextSwitchTime = contextSwitchTime;
-        }
-    }
-}
 ```
 
+
+I wanted to clarify something
+
+In your code you should write unit tests to verify the correctness of your logic
+So you will need to:
+For each test case you will parse the json file inputs and outputs
+For each test case you should run the schedule with the specified inputs
+For each test case you have to use assert to verify that your code is producing the same as expected output
+All of this should be done in the unit testing code there shouldn't be any manual comparisons
 ---
 
-# **4. Integration File (Person 5)**
-
----
-
-## **Main.java**
-
-not implemented yet
-
-```java
-import core.*;
-import io.InputParser;
-import io.InputParser.InputData;
-import schedulers.*;
-
-import java.util.List;
-
-public class Main {
-    public static void main(String[] args) {
-        // Read all input at once
-        InputData input = InputParser.readInput();
-        List<Process> originalProcesses = input.processes;
-        int contextSwitchTime = input.contextSwitchTime;
-        int rrQuantum = input.rrQuantum;
-
-        System.out.println("\nChoose scheduler:");
-        System.out.println("1. SJF (Preemptive)");
-        System.out.println("2. Round Robin");
-        System.out.println("3. Priority (Preemptive w/ aging)");
-        System.out.println("4. AG Scheduling");
-
-        java.util.Scanner sc = new java.util.Scanner(System.in);
-        int choice = sc.nextInt();
-
-        SchedulerBase scheduler = null;
-        String schedulerName = "";
-
-        switch (choice) {
-            case 1:
-                scheduler = new SJFPreemptiveScheduler();
-                schedulerName = "Preemptive Shortest Job First (SJF)";
-                break;
-            case 2:
-                scheduler = new RoundRobinScheduler();
-                schedulerName = "Round Robin";
-                break;
-            case 3:
-                scheduler = new PriorityPreemptiveScheduler();
-                schedulerName = "Preemptive Priority (with Aging)";
-                break;
-            case 4:
-                scheduler = new AGScheduler();
-                schedulerName = "AG Scheduling";
-                break;
-            default:
-                System.out.println("Invalid choice!");
-                return;
-        }
-
-        // Run scheduler on a copy of processes
-        scheduler.run(originalProcesses, contextSwitchTime, rrQuantum);
-
-        // Print results using the beautiful formatter
-        ResultFormatter.printResults(
-            schedulerName,
-            originalProcesses,
-            scheduler.getSlices(),
-            contextSwitchTime
-        );
-
-        // Special output for AG: Quantum History
-        if (scheduler instanceof AGScheduler agScheduler) {
-            agScheduler.printQuantumHistory();
-        }
-    }
-}
-}
-```
-
----
-
-# **5. Json files**
+# **5. Json files (test/resources)**
 
 ---
 
