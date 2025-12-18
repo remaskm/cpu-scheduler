@@ -25,11 +25,13 @@ src/
 │       └── Main.java
 └── test/
     ├── java/
-    │   └── schedulers/
-    │       ├── SJFPreemptiveSchedulerTest.java
-    │       ├── RoundRobinSchedulerTest.java
-    │       ├── PriorityPreemptiveSchedulerTest.java
-    │       └── AGSchedulerTest.java
+    │   ├── schedulers/
+    │   │   ├── SJFPreemptiveSchedulerTest.java
+    │   |   ├── RoundRobinSchedulerTest.java
+    │   |   ├── PriorityPreemptiveSchedulerTest.java
+    │   |   └── AGSchedulerTest.java
+    |   └── utils/
+    |        └── JsonTestHelper.java
     └── resources/
         ├── otherschedulers/
         │   ├── test_1.json
