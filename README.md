@@ -48,11 +48,7 @@ src/
 ```
 
 ---
-
-# **1. Person 1 — Core Files + SJF Template**
----
-
-## **pom.xml**
+# **pom.xml**
 
 ```java
 <?xml version="1.0" encoding="UTF-8"?>
@@ -124,7 +120,8 @@ src/
 ```
 
 ---
-
+# **1. Person 1 — Core Files + SJF Template**
+---
 ## **core/Process.java**
 
 ```java
