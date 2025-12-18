@@ -7,6 +7,7 @@ Everything is organized so integration by Person 5 will be smooth.
 #  **PROJECT STRUCTURE**
 
 ```
+pom.xml
 src/
 ├── main/
 │   └── java/
@@ -49,6 +50,78 @@ src/
 ---
 
 # **1. Person 1 — Core Files + SJF Template**
+---
+
+## **pom.xml**
+
+```java
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.scheduling</groupId>
+    <artifactId>cpu-schedulers</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>CPU Schedulers</name>
+    <description>Implementation of various CPU scheduling algorithms</description>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <junit.version>5.9.3</junit.version>
+    </properties>
+
+    <dependencies>
+        <!-- JUnit 5 for testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compiler plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                </configuration>
+            </plugin>
+
+            <!-- Surefire plugin for running tests -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
 
 ---
 
@@ -1395,16 +1468,13 @@ public class TestUtils {
     }
 }
 ```
-
-
-I wanted to clarify something
-
-In your code you should write unit tests to verify the correctness of your logic
+I wanted to clarify something. In your code you should write unit tests to verify the correctness of your logic
 So you will need to:
 For each test case you will parse the json file inputs and outputs
 For each test case you should run the schedule with the specified inputs
 For each test case you have to use assert to verify that your code is producing the same as expected output
 All of this should be done in the unit testing code there shouldn't be any manual comparisons
+
 ---
 
 ## **AGSchedulerTest.java**
